@@ -17,13 +17,16 @@ private:
 
 public:
   Server(asio::io_context &io, int port_number);
+  ~Server();
   void shutdown();
   void stop_accepting();
 
 private:
   void start_accepting();
 
-  void handle_accept();
+  void handle_accept(ServerConn::conn new_connection,
+                     const std::error_code &ec);
+
   void handle_write();
   void handle_read();
 };

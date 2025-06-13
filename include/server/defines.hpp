@@ -1,14 +1,13 @@
 #ifndef DEFINES_HPP
 #define DEFINES_HPP
 
-// #include "ServerConn.hpp"
+#include "ServerConn.hpp"
 
 #include <asio.hpp>
 
 #include <string>
 
 namespace pirates {
-using asio::ip::tcp;
 
 typedef uint32_t client_id;
 
@@ -21,7 +20,10 @@ struct client_info {
   client_id c_id;
   client_t c_type;
   std::string c_title;
-  // ServerConn c_conn;
+  ServerConn::conn c_conn;
+
+  client_info(client_t client_type, std::string title,
+              ServerConn::conn new_connection);
 };
 
 client_id generate_id() {

@@ -11,6 +11,7 @@ include_directories(~/Documents/ASIO/asio-1.30.2/include)
 add_definitions(-DASIO_STANDALONE)
 
 add_subdirectory(server)
+
 add_executable(PiratesServer server_main.cpp)
 
 target_link_libraries(PiratesServer PRIVATE Server)
