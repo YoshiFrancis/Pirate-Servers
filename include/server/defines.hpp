@@ -1,35 +1,55 @@
 #ifndef DEFINES_HPP
 #define DEFINES_HPP
 
-#include "ServerConn.hpp"
-
-#include <asio.hpp>
-
 #include <string>
+#include <string_view>
 
 namespace pirates {
 
 typedef uint32_t client_id;
-
-enum class client_t {
-  server,
-  client,
-};
+typedef uint32_t server_id;
+typedef uint32_t game_id;
 
 struct client_info {
   client_id c_id;
-  client_t c_type;
-  std::string c_title;
-  ServerConn::conn c_conn;
+  const std::string c_title;
 
-  client_info(client_t client_type, std::string title,
-              ServerConn::conn new_connection);
+  client_info(std::string_view title);
 };
 
-client_id generate_id() {
+struct server_info {
+    server_id s_id;
+    const std::string s_title;
+    uint32_t server_hops;
+    server_info(std::string_view title);
+
+    std::vector<client_info> clients;
+    std::vector<game_id> games;
+};
+
+struct game_info {
+    game_id g_id;
+    server_id s_id;
+    const std::string title;
+    const std::string description;
+    uint32_t curr_playing;
+};
+
+inline client_id generate_client_id() {
   static client_id curr_id = 0;
   return curr_id++;
 }
+
+inline server_id generate_server_id() {
+    static server_id curr_id = 0;
+    return curr_id++;
+}
+
+inline game_id generate_game_id() {
+    static game_id curr_id = 0;
+    return curr_id++;
+}
+
 }; // namespace pirates
 
 #endif
