@@ -18,6 +18,9 @@ private:
 
   Display display;
 
+  // let threads know when to stop
+  bool alive = true;
+
   std::thread user_input_thread;
   std::thread connection_thread;
   std::thread core_thread;
@@ -28,6 +31,7 @@ private:
   zmq::socket_t dealer;
   // socket to receive input from dealer + user_input threads
   zmq::socket_t core;
+
 
 public:
   Client(std::string_view username_, std::string_view password_,
@@ -46,6 +50,8 @@ private:
   // works inside the core thread
   // will handle all input with processing and send to some display
   void core_task();
+
+  void handle_user_input(std::string_view input);
 };
 
 #endif

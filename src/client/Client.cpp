@@ -2,13 +2,11 @@
 #include "zmq_addon.hpp"
 #include <zmq.hpp>
 
-#include <array>
-
 Client::Client(std::string_view username_, std::string_view password_,
                std::string_view server_addr_, int port)
     : username(username_), password(password_), server_addr(server_addr_),
       context(1), dealer(context, zmq::socket_type::dealer),
-      core(context, zmq::socket_type::router) {
+      core(context, zmq::socket_type::pull) {
   // Attempt to connect to server
   dealer.connect(server_addr + ":" + std::to_string(port));
   // Send first message with username + password
@@ -39,13 +37,51 @@ Client::Client(std::string_view username_, std::string_view password_,
 Client::~Client() {
   // should i have a sub/pub for a kill signal?
   // i can just have a boolean
+  alive = false;
   user_input_thread.join();
   connection_thread.join();
   core_thread.join();
 }
 
-void Client::input_task() {}
+void Client::input_task() {
+  zmq::socket_t sender(context, zmq::socket_type::push);
+  sender.connect(
+      core.get(zmq::sockopt::last_endpoint)); // connects to core socket
+  while (alive) {
+    // get input
+    // send input to core via sender
+    zmq::multipart_t client_input;
+    // get input...
+    // TODO
+    client_input.pushstr("CLIENT");
+    zmq::send_multipart(core, client_input);
+  }
+}
 
-void Client::connection_task() {}
+void Client::connection_task() {
+  zmq::socket_t sender(context, zmq::socket_type::push);
+  sender.connect(
+      core.get(zmq::sockopt::last_endpoint)); // connects to core socket
+  while (alive) {
+    std::vector<zmq::message_t> reqs;
+    zmq::recv_result_t res = zmq::recv_multipart(
+        dealer, std::back_inserter(reqs), zmq::recv_flags::none);
+    zmq::send_multipart(core, reqs);
+  }
+}
 
-void Client::core_task() {}
+void Client::core_task() {
+  while (alive) {
+    std::vector<zmq::message_t> reqs;
+    zmq::recv_result_t res =
+        zmq::recv_multipart(core, std::back_inserter(reqs));
+    if (reqs[0].str() == "SERVER") {
+      // handle server input
+    } else if (reqs[0].str() == "CLIENT") {
+      // handle client input
+      handle_user_input(reqs[1].str());
+    }
+  }
+}
+
+void Client::handle_user_input(std::string_view input) {}
