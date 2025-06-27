@@ -12,7 +12,7 @@
 class Client {
 
 private:
-  const std::string username_;
+  const std::string username;
   const std::string password;
   const std::string server_addr;
 
@@ -22,8 +22,8 @@ private:
   std::thread connection_thread;
   std::thread core_thread;
 
-  // socket to receive input from input_thread (user input)
-  zmq::socket_t user_input;
+  zmq::context_t context;
+
   // socket to receive input from connection_thread (server input)
   zmq::socket_t dealer;
   // socket to receive input from dealer + user_input threads
@@ -31,7 +31,7 @@ private:
 
 public:
   Client(std::string_view username_, std::string_view password_,
-         std::string_view server_addr_);
+         std::string_view server_addr_, int port=5555);
   ~Client();
 
 private:
