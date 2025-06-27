@@ -7,6 +7,5 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_subdirectory(src)
 
-add_executable(Client client_main.cpp)
-target_link_libraries(Client MyZMQ)
-
+add_executable(MainClient client_main.cpp)
+target_link_libraries(MainClient Client)
