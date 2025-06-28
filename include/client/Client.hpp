@@ -50,9 +50,15 @@ private:
   // will handle all input with processing and send to some display
   void core_task();
 
+  // TODO
+  // would like input to be a view of a vector of messages
   void handle_ship_input(std::string_view input_type, std::string_view input);
-  void handle_user_input(std::string_view input_type, std::string_view input);
+  void handle_ship_input_text(std::string_view input);
+  void handle_ship_input_command(std::string_view input);
 
+  // TODO
+  // would like input to be a view of a vector of messages
+  void handle_user_input(std::string_view input_type, std::string_view input);
   void handle_user_input_command(std::string_view input);
   void handle_user_input_text(std::string_view input);
 };

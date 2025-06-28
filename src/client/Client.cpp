@@ -7,6 +7,16 @@
 #include <thread>
 #include <vector>
 
+#include <iostream>
+
+void print_multipart_msg(const zmq::multipart_t &mp) {
+  std::cout << mp.size() << " parts:\n";
+  for (auto &msg : mp) {
+    std::cout << msg.size() << " bytes:\n" << std::endl;
+    std::cout << msg.str() << std::endl;
+  }
+}
+
 Client::Client(std::string_view username_, std::string_view password_,
                std::string_view server_addr_, int port)
     : username(username_), password(password_), server_addr(server_addr_),
@@ -32,7 +42,7 @@ Client::Client(std::string_view username_, std::string_view password_,
   assert(res_msg.str() != "Failed");
 
   // If successful, start up core socket
-  core.bind("tcp://127.0.0.1:*"); // use a wild card port
+  core.bind("tcp://localhost:*"); // use a wild card port
   // Begin user input, connection, and core threads
   user_input_thread = std::thread([this]() { input_task(); });
   connection_thread = std::thread([this]() { connection_task(); });
@@ -40,8 +50,6 @@ Client::Client(std::string_view username_, std::string_view password_,
 }
 
 Client::~Client() {
-  // should i have a sub/pub for a kill signal?
-  // i can just have a boolean
   alive = false;
   user_input_thread.join();
   connection_thread.join();
@@ -58,14 +66,12 @@ void Client::input_task() {
     std::cout << "> ";
     std::getline(std::cin, input_str);
     // create message and send
-    zmq::multipart_t client_input;
-    client_input.pushstr("CLIENT");
+    std::array<zmq::const_buffer, 3> client_input = {zmq::str_buffer("CLIENT"),
+                                                     zmq::str_buffer("TEXT"),
+                                                     zmq::buffer(input_str)};
     if (input_str.length() > 0 && input_str[0] == '/') {
-      client_input.pushstr("COMMAND");
-    } else {
-      client_input.pushstr("TEXT");
+      client_input[1] = zmq::str_buffer("COMMAND");
     }
-    client_input.pushstr(input_str);
     zmq::send_multipart(core, client_input);
   }
 }
@@ -100,7 +106,21 @@ void Client::core_task() {
 }
 
 void Client::handle_ship_input(std::string_view input_type,
-                               std::string_view input) {}
+                               std::string_view input) {
+  if (input_type == "TEXT") {
+    handle_ship_input_text(input);
+  } else if (input_type == "COMMAND") {
+    handle_ship_input_command(input);
+  }
+}
+
+void Client::handle_ship_input_text(std::string_view input) {
+  std::cout << "Ship: " << input << '\n';
+}
+
+void Client::handle_ship_input_command(std::string_view input) {
+  std::cout << "Ship issued the command: " << input << '\n';
+}
 
 void Client::handle_user_input(std::string_view input_type,
                                std::string_view input) {
