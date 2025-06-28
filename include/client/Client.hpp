@@ -32,10 +32,9 @@ private:
   // socket to receive input from dealer + user_input threads
   zmq::socket_t core;
 
-
 public:
   Client(std::string_view username_, std::string_view password_,
-         std::string_view server_addr_, int port=5555);
+         std::string_view server_addr_, int port = 5555);
   ~Client();
 
 private:
@@ -51,7 +50,11 @@ private:
   // will handle all input with processing and send to some display
   void core_task();
 
-  void handle_user_input(std::string_view input);
+  void handle_ship_input(std::string_view input_type, std::string_view input);
+  void handle_user_input(std::string_view input_type, std::string_view input);
+
+  void handle_user_input_command(std::string_view input);
+  void handle_user_input_text(std::string_view input);
 };
 
 #endif

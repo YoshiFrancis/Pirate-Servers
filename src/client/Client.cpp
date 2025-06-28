@@ -2,6 +2,11 @@
 #include "zmq_addon.hpp"
 #include <zmq.hpp>
 
+#include <array>
+#include <string_view>
+#include <thread>
+#include <vector>
+
 Client::Client(std::string_view username_, std::string_view password_,
                std::string_view server_addr_, int port)
     : username(username_), password(password_), server_addr(server_addr_),
@@ -48,12 +53,19 @@ void Client::input_task() {
   sender.connect(
       core.get(zmq::sockopt::last_endpoint)); // connects to core socket
   while (alive) {
-    // get input
-    // send input to core via sender
-    zmq::multipart_t client_input;
     // get input...
-    // TODO
+    std::string input_str;
+    std::cout << "> ";
+    std::getline(std::cin, input_str);
+    // create message and send
+    zmq::multipart_t client_input;
     client_input.pushstr("CLIENT");
+    if (input_str.length() > 0 && input_str[0] == '/') {
+      client_input.pushstr("COMMAND");
+    } else {
+      client_input.pushstr("TEXT");
+    }
+    client_input.pushstr(input_str);
     zmq::send_multipart(core, client_input);
   }
 }
@@ -75,13 +87,51 @@ void Client::core_task() {
     std::vector<zmq::message_t> reqs;
     zmq::recv_result_t res =
         zmq::recv_multipart(core, std::back_inserter(reqs));
-    if (reqs[0].str() == "SERVER") {
+    if (reqs.size() < 3)
+      continue;
+    if (reqs[0].str() == "SHIP") {
       // handle server input
+      handle_ship_input(reqs[1].str(), reqs[2].str());
     } else if (reqs[0].str() == "CLIENT") {
       // handle client input
-      handle_user_input(reqs[1].str());
+      handle_user_input(reqs[1].str(), reqs[2].str());
     }
   }
 }
 
-void Client::handle_user_input(std::string_view input) {}
+void Client::handle_ship_input(std::string_view input_type,
+                               std::string_view input) {}
+
+void Client::handle_user_input(std::string_view input_type,
+                               std::string_view input) {
+  if (input_type == "COMMAND") {
+    handle_user_input_command(input);
+  } else if (input_type == "TEXT") {
+    handle_user_input_text(input);
+  }
+}
+
+void Client::handle_user_input_command(std::string_view input) {
+  if (input == "/quit") {
+    std::array<zmq::const_buffer, 2> quit_msg = {zmq::str_buffer("COMMAND"),
+                                                 zmq::str_buffer("quit")};
+    for (size_t i = 0; i < 10; ++i) {
+      if (zmq::send_multipart(dealer, quit_msg))
+        break;
+    }
+    alive = false;
+  }
+}
+
+void Client::handle_user_input_text(std::string_view input) {
+  assert(input[0] != '/');
+  std::array<zmq::const_buffer, 2> send_msgs = {zmq::str_buffer("TEXT"),
+                                                zmq::buffer(input)};
+  // try to send it 10 times
+  for (size_t i = 0; i < 10; ++i) {
+    if (zmq::send_multipart(dealer, send_msgs))
+      return;
+  }
+  // reach here, error occured with server.
+  alive = false;
+}
