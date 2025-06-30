@@ -6,6 +6,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(cppzmq)
 
 add_subdirectory(client)
+add_subdirectory(server)
 
 add_library(MyZMQ INTERFACE)
 target_link_libraries(MyZMQ INTERFACE
@@ -15,3 +16,4 @@ target_link_libraries(MyZMQ INTERFACE
 target_include_directories(MyZMQ INTERFACE ${CMAKE_SOURCE_DIR}/include)
 
 target_link_libraries(Client MyZMQ)
+target_link_libraries(Server MyZMQ)

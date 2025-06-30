@@ -5,6 +5,7 @@
 #include "zmq.hpp"
 
 #include <span>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -37,7 +38,7 @@ private:
   zmq::socket_t ship_dealer;
 
 public:
-  Server(int port_number);
+  Server(std::string_view server_name, int ship_port_number, int crew_port_num);
   ~Server();
 
 private:

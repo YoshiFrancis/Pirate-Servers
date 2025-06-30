@@ -2,6 +2,6 @@ cmake_minimum_required(VERSION 3.29)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-add_library(Server Server.cpp ServerConn.cpp defines.cpp)
+add_library(Server Server.cpp)
 
-target_include_directories(Server PRIVATE ${PROJECT_SOURCE_DIR}/../include/server ${PROJECT_SOURCE_DIR}/../include)
+target_include_directories(Server PRIVATE ${CMAKE_SOURCE_DIR}/include/server)
