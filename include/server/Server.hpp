@@ -36,10 +36,14 @@ private:
   zmq::socket_t core_pull;
   // socket communicating with ship this ship follows (if there is any)
   zmq::socket_t ship_dealer;
+  // socket to communicate to finish
+  zmq::socket_t control_pub;
 
 public:
   Server(std::string_view server_name, int ship_port_number, int crew_port_num);
   ~Server();
+
+  bool is_alive() const;
 
 private:
   void user_input_task();
@@ -49,6 +53,8 @@ private:
 
   // Ship can only get commands from user
   void handle_user_input(std::span<zmq::message_t> input);
+  void handle_user_input_alert(std::span<zmq::message_t> input);
+  void handle_user_input_command(std::span<zmq::message_t> input);
   void handle_sub_ship_input(std::span<zmq::message_t> input);
   void handle_crewmate_input(std::span<zmq::message_t> input);
 };

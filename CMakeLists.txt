@@ -9,3 +9,6 @@ add_subdirectory(src)
 
 add_executable(MainClient client_main.cpp)
 target_link_libraries(MainClient Client)
+
+add_executable(MainServer server_main.cpp)
+target_link_libraries(MainServer Server)

@@ -21,10 +21,11 @@ struct server_info {
     server_id s_id;
     const std::string s_title;
     uint32_t server_hops;
-    server_info(std::string_view title);
 
     std::vector<client_info> clients;
     std::vector<game_id> games;
+
+    server_info(std::string_view title) : s_title(title) {}
 };
 
 struct game_info {
