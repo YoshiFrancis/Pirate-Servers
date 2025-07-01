@@ -12,7 +12,7 @@ Server::Server(std::string_view server_name, int ship_port_num,
       core_pull(context, zmq::socket_type::pull),
       ship_dealer(context, zmq::socket_type::dealer) {
 
-  assert(context);
+  assert(context.handle() != nullptr);
   std::string addr = std::string(server_name) + std::to_string(ship_port_num);
   ship_router.bind(addr);
   assert(ship_router);
@@ -45,6 +45,7 @@ void Server::core_task() {
     std::vector<zmq::message_t> reqs;
     zmq::recv_result_t res =
         zmq::recv_multipart(core_pull, std::back_inserter(reqs));
+    assert(res.has_value() && "recv multipart on core_pull");
     if (reqs.size() < 3)
       continue;
     if (reqs[0].str() == "CLIENT")
@@ -60,6 +61,7 @@ void Server::user_input_task() {
   zmq::socket_t core_sender(context, zmq::socket_type::push);
   core_sender.connect(
       core_pull.get(zmq::sockopt::last_endpoint)); // connects to core socket
+  assert(core_sender.handle() != nullptr && "user to core handle");
   while (alive) {
     // get input...
     std::string input_str;
@@ -74,7 +76,8 @@ void Server::user_input_task() {
     } else if (input_str.length() > 0 && input_str.substr(0, 6) == "alert ") {
       client_input[1] = zmq::str_buffer("ALERT");
     }
-    zmq::send_multipart(core_sender, client_input);
+    zmq::send_result_t res = zmq::send_multipart(core_sender, client_input);
+    assert(res.has_value() && "user to core send");
   }
 }
 
@@ -82,12 +85,16 @@ void Server::ship_listener_task() {
   zmq::socket_t core_sender(context, zmq::socket_type::push);
   core_sender.connect(
       core_pull.get(zmq::sockopt::last_endpoint)); // connects to core socket
+  assert(core_sender.handle() != nullptr && "ship listener to core handle");
   while (alive) {
     std::vector<zmq::message_t> reqs;
     zmq::recv_result_t res = zmq::recv_multipart(
         ship_router, std::back_inserter(reqs), zmq::recv_flags::none);
-    if (reqs[0].str() == "SHIP")
-      zmq::send_multipart(core_sender, reqs);
+    assert(res.has_value());
+    if (reqs[0].str() == "SHIP") {
+      zmq::send_result_t res = zmq::send_multipart(core_sender, reqs);
+      assert(res.has_value() && "ship listener to core send");
+    }
   }
 }
 
@@ -95,12 +102,16 @@ void Server::client_listener_task() {
   zmq::socket_t core_sender(context, zmq::socket_type::push);
   core_sender.connect(
       core_pull.get(zmq::sockopt::last_endpoint)); // connects to core socket
+  assert(core_sender.handle() != nullptr && "client to core handle");
   while (alive) {
     std::vector<zmq::message_t> reqs;
     zmq::recv_result_t res = zmq::recv_multipart(
         ship_router, std::back_inserter(reqs), zmq::recv_flags::none);
-    if (reqs[0].str() == "CREW")
-      zmq::send_multipart(core_sender, reqs);
+    assert(res.has_value());
+    if (reqs[0].str() == "CREW") {
+      zmq::send_result_t res = zmq::send_multipart(core_sender, reqs);
+      assert(res.has_value() && "crew listener to core send");
+    }
   }
 }
 
