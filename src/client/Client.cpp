@@ -17,7 +17,7 @@ void print_multipart_msg(const zmq::multipart_t &mp) {
   }
 }
 
-void print_multipart_msg(std::vector<zmq::message_t>& mp) {
+void print_multipart_msg(std::vector<zmq::message_t> &mp) {
   std::cout << mp.size() << " parts:\n";
   for (auto &msg : mp) {
     std::cout << msg.size() << " bytes:\n" << std::endl;
@@ -34,8 +34,8 @@ Client::Client(std::string_view username_, std::string_view password_,
   dealer.connect(std::string(server_addr));
   // Send first message with username + password
   std::array<zmq::const_buffer, 4> msg = {
-      zmq::str_buffer("CREW"), zmq::str_buffer("LOGIN"), 
-      zmq::buffer(username), zmq::buffer(password)};
+      zmq::str_buffer("CREW"), zmq::str_buffer("LOGIN"), zmq::buffer(username),
+      zmq::buffer(password)};
   zmq::send_result_t res = zmq::send_multipart(dealer, msg);
   assert(res.has_value());
 
@@ -45,12 +45,12 @@ Client::Client(std::string_view username_, std::string_view password_,
   }
   std::cout << "sent message successfully\n";
 
-
   std::vector<zmq::message_t> reqs;
   auto res_result = zmq::recv_multipart_n(dealer, std::back_inserter(reqs), 3);
   assert(res_result.has_value());
   print_multipart_msg(reqs);
-  assert(reqs[0].to_string_view() == "SHIP" && reqs[1].to_string_view() == "ACK");
+  assert(reqs[0].to_string_view() == "SHIP" &&
+         reqs[1].to_string_view() == "ACK");
   std::cout << "connected succesfully\n";
 
   // If successful, start up core socket
@@ -80,16 +80,19 @@ void Client::input_task() {
     std::cout << "> ";
     std::getline(std::cin, input_str);
     // create message and send
+    if (input_str.length() == 0)
+      continue;
     std::array<zmq::const_buffer, 3> client_input = {zmq::str_buffer("CLIENT"),
                                                      zmq::str_buffer("TEXT"),
                                                      zmq::buffer(input_str)};
+
     if (input_str.length() > 0 && input_str[0] == '/') {
       client_input[1] = zmq::str_buffer("COMMAND");
     }
-    zmq::send_multipart(core, client_input);
+
+    zmq::send_multipart(sender, client_input);
   }
 }
-
 void Client::connection_task() {
   zmq::socket_t sender(context, zmq::socket_type::push);
   sender.connect(
@@ -98,7 +101,7 @@ void Client::connection_task() {
     std::vector<zmq::message_t> reqs;
     zmq::recv_result_t res = zmq::recv_multipart(
         dealer, std::back_inserter(reqs), zmq::recv_flags::none);
-    zmq::send_multipart(core, reqs);
+    zmq::send_multipart(sender, reqs);
   }
 }
 
@@ -107,14 +110,12 @@ void Client::core_task() {
     std::vector<zmq::message_t> reqs;
     zmq::recv_result_t res =
         zmq::recv_multipart(core, std::back_inserter(reqs));
-    if (reqs.size() < 3)
-      continue;
-    if (reqs[0].str() == "SHIP") {
+    if (reqs[0].to_string_view() == "SHIP") {
       // handle server input
-      handle_ship_input(reqs[1].str(), reqs[2].str());
-    } else if (reqs[0].str() == "CLIENT") {
+      handle_ship_input(reqs[1].to_string_view(), reqs[2].to_string_view());
+    } else if (reqs[0].to_string_view() == "CLIENT") {
       // handle client input
-      handle_user_input(reqs[1].str(), reqs[2].str());
+      handle_user_input(reqs[1].to_string_view(), reqs[2].to_string_view());
     }
   }
 }
@@ -138,6 +139,7 @@ void Client::handle_ship_input_command(std::string_view input) {
 
 void Client::handle_user_input(std::string_view input_type,
                                std::string_view input) {
+  std::cout << "received input from user\n";
   if (input_type == "COMMAND") {
     handle_user_input_command(input);
   } else if (input_type == "TEXT") {
@@ -163,7 +165,10 @@ void Client::handle_user_input_text(std::string_view input) {
                                                 zmq::buffer(input)};
   // try to send it 10 times
   for (size_t i = 0; i < 10; ++i) {
-    if (zmq::send_multipart(dealer, send_msgs))
+    auto send_res = zmq::send_multipart(dealer,
+
+                                        send_msgs);
+    if (send_res.has_value())
       return;
   }
   // reach here, error occured with server.
