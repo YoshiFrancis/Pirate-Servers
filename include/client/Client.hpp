@@ -7,6 +7,7 @@
 #include <string_view>
 #include <thread>
 #include <atomic>
+#include <span>
 
 #include "../zhelpers.hpp"
 
@@ -32,6 +33,8 @@ private:
   zmq::socket_t dealer;
   // socket to receive input from dealer + user_input threads
   zmq::socket_t core;
+  // socket to control lifespan of threads
+  zmq::socket_t control_pub;
 
 public:
   Client(std::string_view username_, std::string_view password_,
@@ -55,15 +58,15 @@ private:
 
   // TODO
   // would like input to be a view of a vector of messages
-  void handle_ship_input(std::string_view input_type, std::string_view input);
-  void handle_ship_input_text(std::string_view input);
-  void handle_ship_input_command(std::string_view input);
+  void handle_ship_input(std::span<zmq::message_t> input);
+  void handle_ship_input_text(std::span<zmq::message_t> input);
+  void handle_ship_input_command(std::span<zmq::message_t> input);
 
   // TODO
   // would like input to be a view of a vector of messages
-  void handle_user_input(std::string_view input_type, std::string_view input);
-  void handle_user_input_command(std::string_view input);
-  void handle_user_input_text(std::string_view input);
+  void handle_user_input(std::span<zmq::message_t> input);
+  void handle_user_input_command(std::span<zmq::message_t> input);
+  void handle_user_input_text(std::span<zmq::message_t> input);
 };
 
 #endif

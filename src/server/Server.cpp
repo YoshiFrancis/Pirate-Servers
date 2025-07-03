@@ -113,8 +113,8 @@ void Server::ship_listener_task() {
   zmq::pollitem_t items[] = {{ship_router, 0, ZMQ_POLLIN, 0},
                              {control_sub, 0, ZMQ_POLLIN, 0}};
   while (is_alive()) {
-    std::vector<zmq::message_t> reqs;
     zmq::poll(items, 2, std::chrono::milliseconds(-1)); // indefinite polling
+    std::vector<zmq::message_t> reqs;
     if (items[0].revents & ZMQ_POLLIN) {
 
       zmq::recv_result_t res = zmq::recv_multipart(
