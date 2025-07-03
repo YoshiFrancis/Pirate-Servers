@@ -17,29 +17,41 @@ void print_multipart_msg(const zmq::multipart_t &mp) {
   }
 }
 
+void print_multipart_msg(std::vector<zmq::message_t>& mp) {
+  std::cout << mp.size() << " parts:\n";
+  for (auto &msg : mp) {
+    std::cout << msg.size() << " bytes:\n" << std::endl;
+    std::cout << msg.str() << std::endl;
+  }
+}
+
 Client::Client(std::string_view username_, std::string_view password_,
                std::string_view server_addr_, int port)
     : username(username_), password(password_), server_addr(server_addr_),
       context(1), dealer(context, zmq::socket_type::dealer),
       core(context, zmq::socket_type::pull) {
   // Attempt to connect to server
-  dealer.connect(server_addr + ":" + std::to_string(port));
+  dealer.connect(std::string(server_addr));
   // Send first message with username + password
-  zmq::multipart_t login_msg;
-  login_msg.pushstr(password);
-  login_msg.pushstr(username);
+  std::array<zmq::const_buffer, 4> msg = {
+      zmq::str_buffer("CREW"), zmq::str_buffer("LOGIN"), 
+      zmq::buffer(username), zmq::buffer(password)};
+  zmq::send_result_t res = zmq::send_multipart(dealer, msg);
+  assert(res.has_value());
 
-  zmq::send_result_t res = zmq::send_multipart(dealer, login_msg);
-  assert(res.value_or(0) != 0);
   while (res == EAGAIN) {
-    res = zmq::send_multipart(dealer, login_msg);
+    res = zmq::send_multipart(dealer, msg);
+    std::cout << "resending message\n";
   }
-  login_msg.clear();
+  std::cout << "sent message successfully\n";
 
-  zmq::message_t res_msg;
-  auto recv_result = dealer.recv(res_msg, zmq::recv_flags::none);
-  assert(recv_result != -1);
-  assert(res_msg.str() != "Failed");
+
+  std::vector<zmq::message_t> reqs;
+  auto res_result = zmq::recv_multipart_n(dealer, std::back_inserter(reqs), 3);
+  assert(res_result.has_value());
+  print_multipart_msg(reqs);
+  assert(reqs[0].to_string_view() == "SHIP" && reqs[1].to_string_view() == "ACK");
+  std::cout << "connected succesfully\n";
 
   // If successful, start up core socket
   core.bind("tcp://localhost:*"); // use a wild card port
@@ -55,6 +67,8 @@ Client::~Client() {
   connection_thread.join();
   core_thread.join();
 }
+
+bool Client::is_alive() const { return alive; }
 
 void Client::input_task() {
   zmq::socket_t sender(context, zmq::socket_type::push);

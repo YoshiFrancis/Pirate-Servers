@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <atomic>
 
 #include "../zhelpers.hpp"
 
@@ -19,7 +20,7 @@ private:
   Display display;
 
   // let threads know when to stop
-  bool alive = true;
+  std::atomic<bool> alive = true;
 
   std::thread user_input_thread;
   std::thread connection_thread;
@@ -36,6 +37,8 @@ public:
   Client(std::string_view username_, std::string_view password_,
          std::string_view server_addr_, int port = 5555);
   ~Client();
+
+  bool is_alive() const;
 
 private:
   // works inside the input_thread

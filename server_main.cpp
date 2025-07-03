@@ -15,9 +15,10 @@ int main(int argc, char* argv[]) {
 
         Server myserver(argv[1], std::stoi(argv[2]), std::stoi(argv[3]));
         while (myserver.is_alive()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         };
     } catch(...) {
-        std::cout << "unresolved error caught\n";
+        std::cout << "\n\nunresolved error caught in main\n\n";
     }
 
     return EXIT_SUCCESS;

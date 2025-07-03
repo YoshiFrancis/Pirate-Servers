@@ -9,16 +9,18 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <atomic>
 
 class Server {
 
 private:
-  std::unordered_map<pirates::client_id, pirates::client_info> clients;
+  std::unordered_map<pirates::client_id, std::string> logged_clients;
+  std::unordered_map<std::string, pirates::client_info> saved_crewmembers;
   std::unordered_map<pirates::server_id, pirates::server_info> servers;
   std::unordered_map<pirates::game_id, pirates::game_info> owned_games;
   pirates::server_info info;
 
-  bool alive = true;
+  std::atomic<bool> alive = true;
 
   std::thread user_input_thread;
   std::thread ship_listener_thread;
@@ -55,8 +57,13 @@ private:
   void handle_user_input(std::span<zmq::message_t> input);
   void handle_user_input_alert(std::span<zmq::message_t> input);
   void handle_user_input_command(std::span<zmq::message_t> input);
+
   void handle_sub_ship_input(std::span<zmq::message_t> input);
+
   void handle_crewmate_input(std::span<zmq::message_t> input);
+  void handle_crewmate_input_login(std::span<zmq::message_t> input);
+  void handle_crewmate_input_command(std::span<zmq::message_t> input);
+  void handle_crewmate_input_text(std::span<zmq::message_t> input);
 };
 
 #endif

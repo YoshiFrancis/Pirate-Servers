@@ -6,15 +6,19 @@
 
 namespace pirates {
 
-typedef uint32_t client_id;
+typedef std::string client_id;
 typedef uint32_t server_id;
 typedef uint32_t game_id;
 
 struct client_info {
   client_id c_id;
-  const std::string c_title;
+  std::string c_username;
+  std::string c_password;
+  bool c_online = true;
 
-  client_info(std::string_view title);
+  client_info(std::string_view username="", std::string_view password="") { c_username = username; c_password = password; }
+  inline void set_id(client_id id) { c_id = id; }
+  inline client_id get_id() const { return c_id; }
 };
 
 struct server_info {
@@ -35,11 +39,6 @@ struct game_info {
     const std::string description;
     uint32_t curr_playing;
 };
-
-inline client_id generate_client_id() {
-  static client_id curr_id = 0;
-  return curr_id++;
-}
 
 inline server_id generate_server_id() {
     static server_id curr_id = 0;
