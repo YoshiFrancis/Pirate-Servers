@@ -6,6 +6,30 @@
 #include <iostream>
 #include <unistd.h>
 
+void print_multipart_msg(const zmq::multipart_t &mp) {
+  std::cout << mp.size() << " parts:\n";
+  for (auto &msg : mp) {
+    std::cout << msg.size() << " bytes:\n" << std::endl;
+    std::cout << msg.str() << std::endl;
+  }
+}
+
+void print_multipart_msg(std::vector<zmq::message_t> &mp) {
+  std::cout << mp.size() << " parts:\n";
+  for (auto &msg : mp) {
+    std::cout << msg.size() << " bytes:\n" << std::endl;
+    std::cout << msg.str() << std::endl;
+  }
+}
+
+void print_multipart_msg(std::span<zmq::message_t> &mp) {
+  std::cout << mp.size() << " parts:\n";
+  for (auto &msg : mp) {
+    std::cout << msg.size() << " bytes:\n" << std::endl;
+    std::cout << msg.str() << std::endl;
+  }
+}
+
 Server::Server(std::string_view server_name, int ship_port_num,
                int crew_port_num)
     : info(server_name), context(1),
@@ -154,12 +178,6 @@ void Server::client_listener_task() {
       std::cout << "received msg from crew\n";
       zmq::recv_result_t res = zmq::recv_multipart(
           client_router, std::back_inserter(reqs), zmq::recv_flags::none);
-
-      std::for_each(reqs.begin(), reqs.end(), [](zmq::message_t &req) {
-        std::cout << req.to_string() << "\n";
-      });
-
-      std::cout << "-----\n";
       assert(res.has_value());
       const pirates::client_id id = reqs[0].to_string();
       const bool have_client = logged_clients.find(id) != logged_clients.end();
@@ -168,7 +186,8 @@ void Server::client_listener_task() {
                                  reqs[2].to_string_view() == "LOGIN";
       const bool is_correct_format =
           have_client && reqs[1].to_string_view() == "CREW";
-      if (is_logging_in || is_correct_format) {
+      if (is_correct_format || is_logging_in) {
+        std::cout << "sending crew msg to core\n";
         zmq::send_result_t res = zmq::send_multipart(core_sender, reqs);
         assert(res.has_value() && "crew listener to core send");
       }
@@ -192,11 +211,17 @@ void Server::handle_user_input(std::span<zmq::message_t> input) {
 }
 
 void Server::handle_user_input_alert(std::span<zmq::message_t> input) {
-  std::cout << "-----------------ALERT------------\n";
-  for (auto &msg : input) {
-    std::cout << msg.to_string() << "\n";
-  }
-  std::cout << "-----------------------------\n";
+  std::cout << "alert input: " << input[0].to_string() << "\n";
+  std::string alert_data = input[0].to_string();
+  std::array<zmq::const_buffer, 4> send_msgs = {
+      zmq::str_buffer(""), zmq::str_buffer("SHIP"), zmq::str_buffer("ALERT"),
+      zmq::buffer(alert_data)};
+  std::for_each(logged_clients.begin(), logged_clients.end(),
+                [this, &alert_data, &send_msgs](auto &p) {
+                  pirates::client_id id = p.first;
+                  send_msgs[0] = zmq::buffer(id);
+                  zmq::send_multipart(client_router, send_msgs);
+                });
 }
 
 void Server::handle_user_input_command(std::span<zmq::message_t> input) {
@@ -222,12 +247,9 @@ void Server::handle_crewmate_input(std::span<zmq::message_t> input) {
   if (input[2].to_string_view() == "LOGIN")
     handle_crewmate_input_login(input);
   if (input[2].to_string_view() == "COMMAND")
-    handle_crewmate_input_command(input.subspan(3, input.size() - 3));
-  std::cout << "-----------------------------\n";
-  for (auto &msg : input) {
-    std::cout << msg.to_string() << "\n";
-  }
-  std::cout << "-----------------------------\n";
+    handle_crewmate_input_command(input);
+  if (input[2].to_string_view() == "TEXT")
+    handle_crewmate_input_text(input);
 }
 
 void Server::handle_crewmate_input_login(std::span<zmq::message_t> input) {
@@ -250,6 +272,18 @@ void Server::handle_crewmate_input_login(std::span<zmq::message_t> input) {
   }
 }
 
-void Server::handle_crewmate_input_command(std::span<zmq::message_t> input) {}
+void Server::handle_crewmate_input_command(std::span<zmq::message_t> input) {
 
-void Server::handle_crewmate_input_text(std::span<zmq::message_t> input) {}
+  std::string_view command = input[3].to_string_view();
+  auto inputs = input.subspan(4, input.size() - 4);
+  if (command == "quit") {
+    pirates::client_id client_id = input[0].to_string();
+    std::string client_username = logged_clients[client_id];
+    saved_crewmembers[client_username].c_online = false;
+    logged_clients.erase(client_id);
+  }
+}
+
+void Server::handle_crewmate_input_text(std::span<zmq::message_t> input) {
+  print_multipart_msg(input);
+}

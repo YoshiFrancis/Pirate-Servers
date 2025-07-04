@@ -61,6 +61,7 @@ private:
   void handle_ship_input(std::span<zmq::message_t> input);
   void handle_ship_input_text(std::span<zmq::message_t> input);
   void handle_ship_input_command(std::span<zmq::message_t> input);
+  void handle_ship_input_alert(std::span<zmq::message_t> input);
 
   // TODO
   // would like input to be a view of a vector of messages

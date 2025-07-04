@@ -138,6 +138,7 @@ void Client::connection_task() {
       std::vector<zmq::message_t> reqs;
       zmq::recv_result_t res = zmq::recv_multipart(
           dealer, std::back_inserter(reqs), zmq::recv_flags::none);
+      print_multipart_msg(reqs);
       assert(res.has_value() && "dealer listener from ship");
       auto send_res = zmq::send_multipart(sender, reqs);
       assert(send_res.has_value() && "dealer thread to core send");
@@ -169,10 +170,14 @@ void Client::core_task() {
 }
 
 void Client::handle_ship_input(std::span<zmq::message_t> input) {
-  if (input[0].to_string_view() == "TEXT") {
-    handle_ship_input_text(input.subspan(1, input.size() - 1));
-  } else if (input[0].to_string_view() == "COMMAND") {
+  std::cout << "handling ship input:\n";
+  print_multipart_msg(input);
+  if (input[1].to_string_view() == "TEXT") {
+    handle_ship_input_text(input);
+  } else if (input[1].to_string_view() == "COMMAND") {
     handle_ship_input_command(input);
+  } else if (input[1].to_string_view() == "ALERT") {
+    handle_ship_input_alert(input);
   }
 }
 
@@ -194,6 +199,15 @@ void Client::handle_ship_input_command(std::span<zmq::message_t> input) {
   print_multipart_msg(input);
 }
 
+void Client::handle_ship_input_alert(std::span<zmq::message_t> input) {
+  std::cout << "-------------------\n";
+  for (auto &msg : input.subspan(2, input.size() - 2)) {
+    std::cout << "ALERT: " << msg.to_string_view() << "\n";
+  }
+  std::cout << "-------------------\n";
+  std::cout << "< ";
+}
+
 void Client::handle_user_input(std::span<zmq::message_t> input) {
   if (input[1].to_string_view() == "COMMAND") {
     handle_user_input_command(input);
@@ -205,7 +219,8 @@ void Client::handle_user_input(std::span<zmq::message_t> input) {
 void Client::handle_user_input_command(std::span<zmq::message_t> input) {
   const std::string_view command = input[2].to_string_view();
   if (command == "/quit") {
-    std::array<zmq::const_buffer, 2> quit_msg = {zmq::str_buffer("COMMAND"),
+    std::array<zmq::const_buffer, 3> quit_msg = {zmq::str_buffer("CREW"),
+                                                 zmq::str_buffer("COMMAND"),
                                                  zmq::str_buffer("quit")};
     for (size_t i = 0; i < 10; ++i) {
       if (zmq::send_multipart(dealer, quit_msg))
@@ -216,8 +231,9 @@ void Client::handle_user_input_command(std::span<zmq::message_t> input) {
 }
 
 void Client::handle_user_input_text(std::span<zmq::message_t> input) {
-  std::array<zmq::const_buffer, 2> send_msgs = {
-      zmq::str_buffer("TEXT"), zmq::buffer(input[2].to_string())};
+  std::array<zmq::const_buffer, 3> send_msgs = {
+      zmq::str_buffer("CREW"), zmq::str_buffer("TEXT"),
+      zmq::buffer(input[2].to_string())};
   // try to send it 10 times
   for (size_t i = 0; i < 10; ++i) {
     auto send_res = zmq::send_multipart(dealer, send_msgs);
