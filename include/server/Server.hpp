@@ -1,5 +1,5 @@
-#ifndef SERVER_HPP
-#define SERVER_HPP
+#ifndef PIRATES_SHIP_SERVER_HPP
+#define PIRATES_SHIP_SERVER_HPP
 
 #include "defines.hpp"
 #include "zmq.hpp"
@@ -11,14 +11,18 @@
 #include <vector>
 #include <atomic>
 
+namespace pirates {
+
+namespace ship {
+
 class Server {
 
 private:
-  std::unordered_map<pirates::client_id, std::string> logged_clients;
-  std::unordered_map<std::string, pirates::client_info> saved_crewmembers;
-  std::unordered_map<pirates::server_id, pirates::server_info> servers;
-  std::unordered_map<pirates::game_id, pirates::game_info> owned_games;
-  pirates::server_info info;
+  std::unordered_map<client_id, std::string> logged_clients;
+  std::unordered_map<std::string, client_info> saved_crewmembers;
+  std::unordered_map<server_id, server_info> servers;
+  std::unordered_map<game_id, game_info> owned_games;
+  server_info info;
 
   std::atomic<bool> alive = true;
 
@@ -65,5 +69,8 @@ private:
   void handle_crewmate_input_command(std::span<zmq::message_t> input);
   void handle_crewmate_input_text(std::span<zmq::message_t> input);
 };
+
+} // namespace ship
+} // namespace pirates
 
 #endif

@@ -1,10 +1,12 @@
-#ifndef DEFINES_HPP
-#define DEFINES_HPP
+#ifndef PIRATES_SHIP_DEFINES_HPP
+#define PIRATES_SHIP_DEFINES_HPP
 
 #include <string>
 #include <string_view>
 
 namespace pirates {
+
+namespace ship {
 
 typedef std::string client_id;
 typedef uint32_t server_id;
@@ -49,6 +51,8 @@ inline game_id generate_game_id() {
     static game_id curr_id = 0;
     return curr_id++;
 }
+
+};
 
 }; // namespace pirates
 

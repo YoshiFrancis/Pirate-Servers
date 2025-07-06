@@ -1,5 +1,5 @@
-#ifndef SHIPDECK_HPP
-#define SHIPDECK_HPP
+#ifndef PIRATES_SHIP_SHIPDECK_HPP
+#define PIRATES_SHIP_SHIPDECK_HPP
 
 #include "defines.hpp"
 #include "zmq.hpp"
@@ -7,6 +7,7 @@
 #include "CabinContainer.hpp"
 #include "Crewmember.hpp"
 #include "ShipbridgeContainer.hpp"
+#include "Shipbridge.hpp"
 
 #include <span>
 #include <unordered_map>
@@ -14,12 +15,14 @@
 
 namespace pirates {
 
+namespace ship {
+
 class ShipDeck {
 private:
   CabinContainer cabins;
   std::unordered_map<client_id, Crewmember> crewmembers;
-  std::vector<ShipConnectors> sub_ships;
-  ShipConnectorContainer top_ship;
+  ShipbridgeContainer sub_ships;
+  Shipbridge top_ship;
 
 public:
   // one should initialize all the cabins when first starting up the ship deck
@@ -42,6 +45,7 @@ private:
   bool handle_crewmember_input(std::span<zmq::message_t> input);
   bool handle_host_user_input(std::span<zmq::message_t> input);
 };
+} // namespace ship
 } // namespace pirates
 
 #endif
