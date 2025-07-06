@@ -6,6 +6,8 @@
 #include <iostream>
 #include <unistd.h>
 
+using namespace pirates::ship;
+
 void print_multipart_msg(const zmq::multipart_t &mp) {
   std::cout << mp.size() << " parts:\n";
   for (auto &msg : mp) {
@@ -179,7 +181,7 @@ void Server::client_listener_task() {
       zmq::recv_result_t res = zmq::recv_multipart(
           client_router, std::back_inserter(reqs), zmq::recv_flags::none);
       assert(res.has_value());
-      const pirates::client_id id = reqs[0].to_string();
+      const client_id id = reqs[0].to_string();
       const bool have_client = logged_clients.find(id) != logged_clients.end();
       const bool is_logging_in = !have_client &&
                                  reqs[1].to_string_view() == "CREW" &&
@@ -218,7 +220,7 @@ void Server::handle_user_input_alert(std::span<zmq::message_t> input) {
       zmq::buffer(alert_data)};
   std::for_each(logged_clients.begin(), logged_clients.end(),
                 [this, &alert_data, &send_msgs](auto &p) {
-                  pirates::client_id id = p.first;
+                  client_id id = p.first;
                   send_msgs[0] = zmq::buffer(id);
                   zmq::send_multipart(client_router, send_msgs);
                 });
@@ -253,7 +255,7 @@ void Server::handle_crewmate_input(std::span<zmq::message_t> input) {
 }
 
 void Server::handle_crewmate_input_login(std::span<zmq::message_t> input) {
-  pirates::client_id id = input[0].to_string();
+  client_id id = input[0].to_string();
   if (logged_clients.contains(id)) // is this possible?
     return;
   std::string username = input[3].to_string();
@@ -264,7 +266,7 @@ void Server::handle_crewmate_input_login(std::span<zmq::message_t> input) {
       (iter != saved_crewmembers.end() &&
        iter->second.c_password == password)) { // never signed in or old user
     logged_clients[id] = username;
-    saved_crewmembers[username] = pirates::client_info(username, password);
+    saved_crewmembers[username] = client_info(username, password);
     saved_crewmembers[username].c_id = id;
     std::array<zmq::const_buffer, 3> ack = {
         zmq::buffer(id), zmq::str_buffer("SHIP"), zmq::str_buffer("ACK")};
@@ -277,7 +279,7 @@ void Server::handle_crewmate_input_command(std::span<zmq::message_t> input) {
   std::string_view command = input[3].to_string_view();
   auto inputs = input.subspan(4, input.size() - 4);
   if (command == "quit") {
-    pirates::client_id client_id = input[0].to_string();
+    client_id client_id = input[0].to_string();
     std::string client_username = logged_clients[client_id];
     saved_crewmembers[client_username].c_online = false;
     logged_clients.erase(client_id);
