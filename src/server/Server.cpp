@@ -8,36 +8,12 @@
 
 using namespace pirates::ship;
 
-void print_multipart_msg(const zmq::multipart_t &mp) {
-  std::cout << mp.size() << " parts:\n";
-  for (auto &msg : mp) {
-    std::cout << msg.size() << " bytes:\n" << std::endl;
-    std::cout << msg.str() << std::endl;
-  }
-}
-
-void print_multipart_msg(std::vector<zmq::message_t> &mp) {
-  std::cout << mp.size() << " parts:\n";
-  for (auto &msg : mp) {
-    std::cout << msg.size() << " bytes:\n" << std::endl;
-    std::cout << msg.str() << std::endl;
-  }
-}
-
-void print_multipart_msg(std::span<zmq::message_t> &mp) {
-  std::cout << mp.size() << " parts:\n";
-  for (auto &msg : mp) {
-    std::cout << msg.size() << " bytes:\n" << std::endl;
-    std::cout << msg.str() << std::endl;
-  }
-}
-
-Server::Server(std::string_view server_name, int ship_port_num,
-               int crew_port_num)
+Server::Server(const std::string &shipdeck_addr, std::string_view server_name,
+               int ship_port_num, int crew_port_num)
     : info(server_name), context(1),
       ship_router(context, zmq::socket_type::router),
       client_router(context, zmq::socket_type::router),
-      core_pull(context, zmq::socket_type::pull),
+      shipdeck_dealer(context, zmq::socket_type::dealer),
       ship_dealer(context, zmq::socket_type::dealer),
       control_pub(context, zmq::socket_type::pub) {
 
@@ -50,12 +26,11 @@ Server::Server(std::string_view server_name, int ship_port_num,
   std::cout << "binding client router\n";
   client_router.bind(addr);
   assert(client_router.handle() != nullptr);
-  core_pull.bind("tcp://localhost:*");
-  assert(core_pull.handle() != nullptr);
+  shipdeck_dealer.connect(shipdeck_addr);
+  assert(shipdeck_dealer.handle() != nullptr);
   control_pub.bind("tcp://localhost:*");
   assert(control_pub.handle() != nullptr);
 
-  core_thread = std::thread([this]() { core_task(); });
   user_input_thread = std::thread([this]() { user_input_task(); });
   ship_listener_thread = std::thread([this]() { ship_listener_task(); });
   client_listener_thread = std::thread([this]() { client_listener_task(); });
@@ -75,55 +50,25 @@ Server::~Server() {
   if (client_listener_thread.joinable())
     client_listener_thread.join();
   std::cout << "joined client_listener thread\n";
-  if (core_thread.joinable())
-    core_thread.join();
-  std::cout << "joined core thread\n";
 }
 
 bool Server::is_alive() const { return alive; }
 
-void Server::core_task() {
-  while (is_alive()) {
-    std::vector<zmq::message_t> reqs;
-    zmq::recv_result_t res =
-        zmq::recv_multipart(core_pull, std::back_inserter(reqs));
-    assert(res.has_value() && "recv multipart on core_pull");
-    if (reqs.size() < 3)
-      continue;
-  }
-}
-
 void Server::user_input_task() {
-  zmq::socket_t core_sender(context, zmq::socket_type::push);
-  core_sender.connect(
-      core_pull.get(zmq::sockopt::last_endpoint)); // connects to core socket
-  assert(core_sender.handle() != nullptr && "user to core handle");
   while (is_alive()) {
     // get input...
     std::string input_str;
     std::cout << "> ";
     std::getline(std::cin, input_str);
     // create message and send
-    std::array<zmq::const_buffer, 3> client_input = {zmq::str_buffer("CLIENT"),
-                                                     zmq::str_buffer("NONE"),
-                                                     zmq::buffer(input_str)};
     if (input_str.length() > 0 && input_str[0] == '/') {
-      client_input[1] = zmq::str_buffer("COMMAND");
-    } else if (input_str.length() > 0 && input_str.substr(0, 6) == "alert ") {
-      client_input[1] = zmq::str_buffer("ALERT");
-    } else {
-      continue;
+      std::vector<std::string> client_input = {"COMMAND", input_str};
+      handle_user_input(client_input);
     }
-    zmq::send_result_t res = zmq::send_multipart(core_sender, client_input);
-    assert(res.has_value() && "user to core send");
   }
 }
 
 void Server::ship_listener_task() {
-  zmq::socket_t core_sender(context, zmq::socket_type::push);
-  core_sender.connect(
-      core_pull.get(zmq::sockopt::last_endpoint)); // connects to core socket
-  assert(core_sender.handle() != nullptr && "ship listener to core handle");
   zmq::socket_t control_sub(context, zmq::socket_type::sub);
   control_sub.connect(control_pub.get(
       zmq::sockopt::last_endpoint)); // connects to control socket
@@ -141,7 +86,7 @@ void Server::ship_listener_task() {
           ship_router, std::back_inserter(reqs), zmq::recv_flags::none);
       assert(res.has_value());
       if (reqs[0].to_string_view() == "SHIP") {
-        zmq::send_result_t res = zmq::send_multipart(core_sender, reqs);
+        zmq::send_result_t res = zmq::send_multipart(shipdeck_dealer, reqs);
         assert(res.has_value() && "ship listener to core send");
       }
 
@@ -149,6 +94,7 @@ void Server::ship_listener_task() {
         std::cout << "ship listener signal to die\n";
         zmq::message_t control_msg(0);
         auto res = control_sub.recv(control_msg);
+        break;
       }
     }
   }
@@ -156,10 +102,6 @@ void Server::ship_listener_task() {
 }
 
 void Server::client_listener_task() {
-  zmq::socket_t core_sender(context, zmq::socket_type::push);
-  core_sender.connect(
-      core_pull.get(zmq::sockopt::last_endpoint)); // connects to core socket
-  assert(core_sender.handle() != nullptr && "client to core handle");
   zmq::socket_t control_sub(context, zmq::socket_type::sub);
   control_sub.connect(control_pub.get(
       zmq::sockopt::last_endpoint)); // connects to control socket
@@ -171,22 +113,13 @@ void Server::client_listener_task() {
     std::vector<zmq::message_t> reqs;
     zmq::poll(items, 2, std::chrono::milliseconds(-1)); // indefinite polling
     if (items[0].revents & ZMQ_POLLIN) {
-      std::cout << "received msg from crew\n";
-      zmq::recv_result_t res = zmq::recv_multipart(
+      zmq::recv_result_t recv_res = zmq::recv_multipart(
           client_router, std::back_inserter(reqs), zmq::recv_flags::none);
-      assert(res.has_value());
-      const client_id id = reqs[0].to_string();
-      const bool have_client = logged_clients.find(id) != logged_clients.end();
-      const bool is_logging_in = !have_client &&
-                                 reqs[1].to_string_view() == "CREW" &&
-                                 reqs[2].to_string_view() == "LOGIN";
-      const bool is_correct_format =
-          have_client && reqs[1].to_string_view() == "CREW";
-      if (is_correct_format || is_logging_in) {
-        std::cout << "sending crew msg to core\n";
-        zmq::send_result_t res = zmq::send_multipart(core_sender, reqs);
-        assert(res.has_value() && "crew listener to core send");
-      }
+      assert(recv_res.has_value());
+      std::cout << "received message from client\n";
+      print_multipart_msg(reqs);
+      zmq::send_result_t send_res = zmq::send_multipart(shipdeck_dealer, reqs);
+      assert(send_res.has_value() && "crew listener to core send");
     }
 
     if (items[1].revents & ZMQ_POLLIN) {
@@ -198,81 +131,19 @@ void Server::client_listener_task() {
   std::cout << "client listener dieing...\n";
 }
 
-void Server::handle_user_input(std::span<zmq::message_t> input) {
+void Server::handle_user_input(std::span<std::string> input) {
   assert(input[0].to_string_view() == "CLIENT");
-  if (input[1].to_string_view() == "ALERT")
-    handle_user_input_alert(input.subspan(2, input.size() - 2));
-  else if (input[1].to_string_view() == "COMMAND")
+  if (input[1] == "COMMAND")
     handle_user_input_command(input.subspan(2, input.size() - 2));
 }
 
-void Server::handle_user_input_alert(std::span<zmq::message_t> input) {
-  std::cout << "alert input: " << input[0].to_string() << "\n";
-  std::string alert_data = input[0].to_string();
-  std::array<zmq::const_buffer, 4> send_msgs = {
-      zmq::str_buffer(""), zmq::str_buffer("SHIP"), zmq::str_buffer("ALERT"),
-      zmq::buffer(alert_data)};
-  std::for_each(logged_clients.begin(), logged_clients.end(),
-                [this, &alert_data, &send_msgs](auto &p) {
-                  client_id id = p.first;
-                  send_msgs[0] = zmq::buffer(id);
-                  zmq::send_multipart(client_router, send_msgs);
-                });
-}
-
-void Server::handle_user_input_command(std::span<zmq::message_t> input) {
+void Server::handle_user_input_command(std::span<std::string> input) {
   std::cout << "--------------COMMAND---------------\n";
   for (auto &msg : input) {
-    std::cout << msg.to_string() << "\n";
+    std::cout << msg << "\n";
   }
   std::cout << "-----------------------------\n";
-  if (input[0].to_string_view() == "/quit") {
+  if (input[0] == "/quit") {
     alive = false;
   }
-}
-
-void Server::handle_sub_ship_input(std::span<zmq::message_t> input) {
-  std::cout << "-----------------------------\n";
-  for (auto &msg : input) {
-    std::cout << msg.to_string() << "\n";
-  }
-  std::cout << "-----------------------------\n";
-}
-
-void Server::handle_crewmate_input(std::span<zmq::message_t> input) {}
-
-void Server::handle_crewmate_input_login(std::span<zmq::message_t> input) {
-  client_id id = input[0].to_string();
-  if (logged_clients.contains(id)) // is this possible?
-    return;
-  std::string username = input[3].to_string();
-  std::string password = input[4].to_string();
-  std::cout << "New user? " << !saved_crewmembers.contains(username) << "\n";
-  auto iter = saved_crewmembers.find(username);
-  if (iter == saved_crewmembers.end() ||
-      (iter != saved_crewmembers.end() &&
-       iter->second.c_password == password)) { // never signed in or old user
-    logged_clients[id] = username;
-    saved_crewmembers[username] = client_info(username, password);
-    saved_crewmembers[username].c_id = id;
-    std::array<zmq::const_buffer, 3> ack = {
-        zmq::buffer(id), zmq::str_buffer("SHIP"), zmq::str_buffer("ACK")};
-    zmq::send_multipart(client_router, ack);
-  }
-}
-
-void Server::handle_crewmate_input_command(std::span<zmq::message_t> input) {
-
-  std::string_view command = input[3].to_string_view();
-  auto inputs = input.subspan(4, input.size() - 4);
-  if (command == "quit") {
-    client_id client_id = input[0].to_string();
-    std::string client_username = logged_clients[client_id];
-    saved_crewmembers[client_username].c_online = false;
-    logged_clients.erase(client_id);
-  }
-}
-
-void Server::handle_crewmate_input_text(std::span<zmq::message_t> input) {
-  print_multipart_msg(input);
 }

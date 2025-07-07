@@ -3,6 +3,9 @@
 #include "zmq_addon.hpp"
 
 #include <iostream>
+#include <vector>
+#include <algorithm>
+#include <ranges>
 
 using namespace pirates::ship;
 
@@ -60,12 +63,14 @@ void ShipDeck::server_listener_worker() {
 
             auto recv_res = zmq::recv_multipart(server_router, std::back_inserter(reqs));
             assert(recv_res.has_value());
+            std::cout << "shipdeck received message from server\n";
+            print_multipart_msg(reqs);
 
-            if (reqs[1].to_string_view() == "SHIP")
+            if (reqs[2].to_string_view() == "SHIP")
                 handle_top_ship_input(reqs);
-            else if (reqs[1].to_string_view() == "SUB")
+            else if (reqs[2].to_string_view() == "SUB")
                 handle_sub_ship_input(reqs);
-            else if (reqs[1].to_string_view() == "CREW")
+            else if (reqs[2].to_string_view() == "CREW")
                 handle_crewmate_input(reqs);
         }
 
@@ -135,15 +140,27 @@ void ShipDeck::user_input_worker() {
 }
 
 void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
-
+    // for now, just send it to the user via the server router
+    // no need for any processing as of now
+    std::vector<zmq::message_t> input_copy(input.size());
+    std::ranges::move(input, input_copy.begin());
+    auto send_res = zmq::send_multipart(server_router, input_copy);
 }
 
 void ShipDeck::handle_services_crew_input(std::span<zmq::message_t> input) {
-
+    // for now, just send it to the user via the server router
+    // no need for any processing as of now
+    std::vector<zmq::message_t> input_copy(input.size());
+    std::ranges::move(input, input_copy.begin());
+    auto send_res = zmq::send_multipart(server_router, input_copy);
 }
 
 void ShipDeck::handle_services_ships_input(std::span<zmq::message_t> input) {
-
+    // for now, just send it to the user via the server router
+    // no need for any processing as of now
+    std::vector<zmq::message_t> input_copy(input.size());
+    std::ranges::move(input, input_copy.begin());
+    auto send_res = zmq::send_multipart(server_router, input_copy);
 }
 
 
@@ -156,22 +173,22 @@ bool ShipDeck::handle_top_ship_input(std::span<zmq::message_t> input) {
 }
 
 void ShipDeck::handle_crewmate_input(std::span<zmq::message_t> input) {
+    // input = [s_id, c_id, type_of_msg (CREW), user_command, arguments]
+    print_multipart_msg(input);
 
-    if (input[2].to_string_view() == "LOGIN")
+    if (input[3].to_string_view() == "LOGIN")
         handle_crewmate_input_login(input);
-    if (input[2].to_string_view() == "COMMAND")
+    if (input[3].to_string_view() == "COMMAND")
         handle_crewmate_input_command(input);
-    if (input[2].to_string_view() == "TEXT")
+    if (input[3].to_string_view() == "TEXT")
         handle_crewmate_input_text(input);
 }
 
 void ShipDeck::handle_crewmate_input_login(std::span<zmq::message_t> input) {
     std::string s_id = input[0].to_string();
     client_id c_id = input[1].to_string();
-    zmq::send_multipart(crew_dealer, input);
-    std::array<zmq::const_buffer, 4> ack = {
-        zmq::buffer(s_id), zmq::buffer(c_id), zmq::str_buffer("SHIP"), zmq::str_buffer("ACK")};
-    zmq::send_multipart(server_router, ack);
+    auto send_res = zmq::send_multipart(crew_dealer, input);
+    assert(send_res.has_value());
 }
 
 void ShipDeck::handle_crewmate_input_command(std::span<zmq::message_t> input) {
@@ -182,11 +199,12 @@ void ShipDeck::handle_crewmate_input_text(std::span<zmq::message_t> input) {
 
 }
 
-bool ShipDeck::add_cabin(const std::string &endpoint) {
+bool ShipDeck::handle_host_user_input(std::span<std::string> input) {
+
     return false;
 }
 
-bool ShipDeck::add_crewmember(client_id id, client_info info){
+bool ShipDeck::add_cabin(const std::string &endpoint) {
     return false;
 }
 
@@ -196,10 +214,6 @@ bool ShipDeck::add_sub_ship(const std::string &endpoint) {
 
 bool ShipDeck::set_top_ship(const std::string &endpoint) {
     return false;
-}
-
-void ShipDeck::send_shipdeck_info(client_id id) {
-
 }
 
 bool ShipDeck::add_player_to_cabin(client_id id) {

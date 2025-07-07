@@ -61,7 +61,6 @@ private:
   bool handle_host_user_input(std::span<std::string> input);
 
   bool add_cabin(const std::string &endpoint);
-  bool add_crewmember(client_id id, client_info info);
   bool add_sub_ship(const std::string &endpoint);
   bool set_top_ship(const std::string &endpoint);
   // describe all the cabins and the players inside

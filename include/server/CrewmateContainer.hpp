@@ -16,6 +16,8 @@ class CrewmateContainer {
 
     public:
         CrewmateContainer(std::string_view endpoint, bool threaded=true);
+
+        // will login users
         bool send_login(std::span<zmq::message_t> input);
 
     private:

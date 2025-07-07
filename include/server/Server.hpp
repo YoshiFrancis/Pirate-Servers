@@ -4,12 +4,12 @@
 #include "defines.hpp"
 #include "zmq.hpp"
 
+#include <atomic>
 #include <span>
 #include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include <atomic>
 
 namespace pirates {
 
@@ -18,10 +18,6 @@ namespace ship {
 class Server {
 
 private:
-  std::unordered_map<client_id, std::string> logged_clients;
-  std::unordered_map<std::string, client_info> saved_crewmembers;
-  std::unordered_map<server_id, server_info> servers;
-  std::unordered_map<game_id, game_info> owned_games;
   server_info info;
 
   std::atomic<bool> alive = true;
@@ -29,7 +25,6 @@ private:
   std::thread user_input_thread;
   std::thread ship_listener_thread;
   std::thread client_listener_thread;
-  std::thread core_thread;
 
   zmq::context_t context;
 
@@ -39,14 +34,15 @@ private:
   zmq::socket_t client_router;
   // socket communicating from core_thread with the ship, client, and user input
   // threads
-  zmq::socket_t core_pull;
+  zmq::socket_t shipdeck_dealer;
   // socket communicating with ship this ship follows (if there is any)
   zmq::socket_t ship_dealer;
   // socket to communicate to finish
   zmq::socket_t control_pub;
 
 public:
-  Server(std::string_view server_name, int ship_port_number, int crew_port_num);
+  Server(const std::string &shipdeck_addr, std::string_view server_name,
+         int ship_port_number, int crew_port_num);
   ~Server();
 
   bool is_alive() const;
@@ -58,12 +54,10 @@ private:
   void core_task();
 
   // Ship can only get commands from user
-  void handle_user_input(std::span<zmq::message_t> input);
-  void handle_user_input_alert(std::span<zmq::message_t> input);
-  void handle_user_input_command(std::span<zmq::message_t> input);
+  void handle_user_input(std::span<std::string> input);
+  void handle_user_input_command(std::span<std::string> input);
 
   void handle_sub_ship_input(std::span<zmq::message_t> input);
-
 };
 
 } // namespace ship

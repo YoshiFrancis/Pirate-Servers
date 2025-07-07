@@ -1,8 +1,12 @@
 #ifndef PIRATES_SHIP_DEFINES_HPP
 #define PIRATES_SHIP_DEFINES_HPP
 
+#include "zmq_addon.hpp"
+
 #include <string>
 #include <string_view>
+#include <span>
+
 
 namespace pirates {
 
@@ -42,16 +46,9 @@ struct game_info {
     uint32_t curr_playing;
 };
 
-inline server_id generate_server_id() {
-    static server_id curr_id = 0;
-    return curr_id++;
-}
-
-inline game_id generate_game_id() {
-    static game_id curr_id = 0;
-    return curr_id++;
-}
-
+void print_multipart_msg(const zmq::multipart_t &mp);
+void print_multipart_msg(std::vector<zmq::message_t> &mp);
+void print_multipart_msg(std::span<zmq::message_t> &mp);
 };
 
 }; // namespace pirates
