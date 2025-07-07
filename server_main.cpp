@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
     std::cout << "begining server!\n";
     try {
 
-        Server myserver(argv[1], std::stoi(argv[2]), std::stoi(argv[3]));
+        pirates::ship::Server myserver(argv[1], std::stoi(argv[2]), std::stoi(argv[3]));
         while (myserver.is_alive()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         };

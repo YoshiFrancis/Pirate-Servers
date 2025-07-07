@@ -9,7 +9,7 @@ namespace pirates {
 namespace ship {
 
 typedef std::string client_id;
-typedef uint32_t server_id;
+typedef std::string server_id;
 typedef uint32_t game_id;
 
 struct client_info {

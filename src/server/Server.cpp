@@ -90,12 +90,6 @@ void Server::core_task() {
     assert(res.has_value() && "recv multipart on core_pull");
     if (reqs.size() < 3)
       continue;
-    if (reqs[0].to_string_view() == "CLIENT")
-      handle_user_input(reqs);
-    else if (reqs[0].to_string_view() == "SHIP")
-      handle_sub_ship_input(reqs);
-    else if (reqs[1].to_string_view() == "CREW")
-      handle_crewmate_input(reqs);
   }
 }
 
@@ -245,14 +239,7 @@ void Server::handle_sub_ship_input(std::span<zmq::message_t> input) {
   std::cout << "-----------------------------\n";
 }
 
-void Server::handle_crewmate_input(std::span<zmq::message_t> input) {
-  if (input[2].to_string_view() == "LOGIN")
-    handle_crewmate_input_login(input);
-  if (input[2].to_string_view() == "COMMAND")
-    handle_crewmate_input_command(input);
-  if (input[2].to_string_view() == "TEXT")
-    handle_crewmate_input_text(input);
-}
+void Server::handle_crewmate_input(std::span<zmq::message_t> input) {}
 
 void Server::handle_crewmate_input_login(std::span<zmq::message_t> input) {
   client_id id = input[0].to_string();

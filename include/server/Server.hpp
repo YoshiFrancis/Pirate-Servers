@@ -64,10 +64,6 @@ private:
 
   void handle_sub_ship_input(std::span<zmq::message_t> input);
 
-  void handle_crewmate_input(std::span<zmq::message_t> input);
-  void handle_crewmate_input_login(std::span<zmq::message_t> input);
-  void handle_crewmate_input_command(std::span<zmq::message_t> input);
-  void handle_crewmate_input_text(std::span<zmq::message_t> input);
 };
 
 } // namespace ship
