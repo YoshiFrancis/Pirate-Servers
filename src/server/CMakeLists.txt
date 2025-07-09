@@ -7,6 +7,7 @@ add_library(Server
     CabinContainer.cpp 
     CrewmateContainer.cpp
     Crewmember.cpp 
+    LobbyCabin.cpp
     Server.cpp 
     Shipbridge.cpp 
     ShipbridgeContainer.cpp 

@@ -57,8 +57,7 @@ void Cabin::poll_with_control(
 bool Cabin::authenticate_with_server() {
   std::array<zmq::const_buffer, 2> auth_msg{zmq::str_buffer("REGISTRATION"),
                                             zmq::str_buffer("JOIN")};
-  auto send_res = zmq::send_multipart(shipdeck_dealer, auth_msg);
-  std::cout << "sent message to shipdeck\n";
+  auto send_res = send_to_shipdeck(auth_msg);
   assert(send_res.has_value());
   std::vector<zmq::message_t> reply;
   auto recv_res =
@@ -69,7 +68,6 @@ bool Cabin::authenticate_with_server() {
     info.g_id = reply[2].to_string();
     send_res = send_to_shipdeck(cabin_info_msg());
     assert(send_res.has_value());
-    std::cout << "successfully authenticated with the server!\n";
     return true;
   } else {
     return false;

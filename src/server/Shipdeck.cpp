@@ -143,14 +143,10 @@ void ShipDeck::user_input_worker() {
 void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
   // for now, just send it to the user via the server router
   // no need for any processing as of now
-    std::cout << "received input from cabin\n";
-    print_multipart_msg(input);
   // std::vector<zmq::message_t> input_copy(input.size());
   // std::ranges::move(input, input_copy.begin());
   if (input[1].to_string_view() == "REGISTRATION") {
-      std::cout << "cabin trying to register\n";
       if (input[2].to_string_view() == "JOIN" && !cabin_id_to_info.contains(input[0].to_string())) {
-          std::cout << "cabin trying to join\n";
           std::array<zmq::const_buffer, 4> reply {
               zmq::buffer(input[0].to_string()),
                   zmq::str_buffer("SHIP"),
@@ -168,7 +164,6 @@ void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
           if (items[0].revents & ZMQ_POLLIN) {
               std::vector<zmq::message_t> cabin_info_reply;
               auto recv_res = zmq::recv_multipart(cabins_router, std::back_inserter(cabin_info_reply));
-              print_multipart_msg(cabin_info_reply);
               assert(recv_res.has_value());
               std::string_view g_id = cabin_info_reply[0].to_string_view();
               std::string_view title = cabin_info_reply[1].to_string_view();
@@ -181,10 +176,11 @@ void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
               cabin_id_to_info[cabin_id(g_id)] = std::move(new_cabin);
               
               std::cout << "successfully added a new cabin: " << title << "\n";
-
+              if (default_cabin == "") {
+                  std::cout << "default cabin configured to " << title << "\n";
+                  default_cabin = title;
+              }
           }
-
-
       }
   }
 }
@@ -206,13 +202,22 @@ bool ShipDeck::handle_top_ship_input(std::span<zmq::message_t> input) {
 }
 
 void ShipDeck::handle_crewmate_input(std::span<zmq::message_t> input) {
-  // input = [s_id, c_id, type_of_msg (CREW), user_command, arguments]
-  std::cout << "received cremate input\n";
-  print_multipart_msg(input);
-  if (input[3].to_string_view() == "COMMAND")
-    handle_crewmate_input_command(input);
-  else if (input[3].to_string_view() == "TEXT")
-    handle_crewmate_input_text(input);
+    // input = [s_id, c_id, type_of_msg (CREW), user_command, arguments]
+
+    if (input[3].to_string_view() == "LOGIN" && !client_map.contains(input[1].to_string())) {
+        std::string user_id = input[1].to_string();
+        std::string_view username = input[4].to_string_view();
+        std::string_view password = input[5].to_string_view();
+        client_map[user_id] = client_info(username, password);
+        client_map[user_id].set_id(user_id);
+
+    } else if (!client_map.contains(client_id(input[1].to_string()))) {
+        return;
+    }
+    else if (input[3].to_string_view() == "COMMAND")
+        handle_crewmate_input_command(input);
+    else if (input[3].to_string_view() == "TEXT")
+        handle_crewmate_input_text(input);
 }
 
 void ShipDeck::handle_crewmate_input_command(std::span<zmq::message_t> input) {
@@ -248,4 +253,16 @@ bool ShipDeck::add_sub_ship(const std::string &endpoint) { return false; }
 
 bool ShipDeck::set_top_ship(const std::string &endpoint) { return false; }
 
-bool ShipDeck::add_player_to_cabin(client_id id) { return false; }
+void ShipDeck::change_player_cabins(client_id crew_id, cabin_id cabin_id) {
+    std::string crew_username = client_map[crew_id].c_username;
+    std::array<zmq::const_buffer, 3> disconnect_msg  {
+        zmq::buffer(cabin_id), zmq::str_buffer("DISCONNECT"), zmq::buffer(crew_username)
+    };
+
+    if (client_map[crew_id].c_online) {
+        std::array<zmq::const_buffer, 4> join_msg {
+            zmq::buffer(cabin_id), zmq::str_buffer("JOIN"), zmq::buffer(crew_username)
+        };
+    }
+
+}

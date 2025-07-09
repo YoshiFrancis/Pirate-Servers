@@ -20,11 +20,13 @@ class Cabin {
 
 private:
   zmq::context_t context;
-  zmq::socket_t shipdeck_dealer;
   zmq::socket_t control_sub;
   cabin_info info;
 
   std::atomic<bool> alive = true;
+
+protected:
+  zmq::socket_t shipdeck_dealer;
 
 public:
   Cabin(std::string_view title, std::string_view description,

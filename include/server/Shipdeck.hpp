@@ -32,6 +32,8 @@ private:
   // control socket to kill threads
   zmq::socket_t control_pub;
 
+  std::string default_cabin = "";
+
   std::unordered_map<std::string, cabin_id> cabin_name_to_id; 
   std::unordered_map<cabin_id, cabin_info>
       cabin_id_to_info; // cabin title, cabin info
@@ -69,7 +71,8 @@ private:
   bool set_top_ship(const std::string &endpoint);
   // describe all the cabins and the players inside
   void send_shipdeck_info(client_id id);
-  bool add_player_to_cabin(client_id id);
+  void change_player_cabins(client_id crew_id, cabin_id cabin_id);
+
 };
 } // namespace ship
 } // namespace pirates
