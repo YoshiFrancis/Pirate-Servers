@@ -143,18 +143,50 @@ void ShipDeck::user_input_worker() {
 void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
   // for now, just send it to the user via the server router
   // no need for any processing as of now
-  std::vector<zmq::message_t> input_copy(input.size());
-  std::ranges::move(input, input_copy.begin());
-  print_multipart_msg(input);
-  auto send_res = zmq::send_multipart(server_router, input_copy);
-}
+    std::cout << "received input from cabin\n";
+    print_multipart_msg(input);
+  // std::vector<zmq::message_t> input_copy(input.size());
+  // std::ranges::move(input, input_copy.begin());
+  if (input[1].to_string_view() == "REGISTRATION") {
+      std::cout << "cabin trying to register\n";
+      if (input[2].to_string_view() == "JOIN" && !cabin_id_to_info.contains(input[0].to_string())) {
+          std::cout << "cabin trying to join\n";
+          std::array<zmq::const_buffer, 4> reply {
+              zmq::buffer(input[0].to_string()),
+                  zmq::str_buffer("SHIP"),
+                  zmq::str_buffer("SUCCESS"),
+                  zmq::buffer(input[0].to_string())
+          };
 
-void ShipDeck::handle_services_crew_input(std::span<zmq::message_t> input) {
-  // for now, just send it to the user via the server router
-  // no need for any processing as of now
-  std::vector<zmq::message_t> input_copy(input.size());
-  std::ranges::move(input, input_copy.begin());
-  auto send_res = zmq::send_multipart(server_router, input_copy);
+          auto send_res = zmq::send_multipart(cabins_router, reply);
+          assert(send_res.has_value());
+
+          zmq::pollitem_t items[1] { 
+              { cabins_router, 0, ZMQ_POLLIN, 0 }
+          };
+          zmq::poll(items, 1, std::chrono::milliseconds(500));
+          if (items[0].revents & ZMQ_POLLIN) {
+              std::vector<zmq::message_t> cabin_info_reply;
+              auto recv_res = zmq::recv_multipart(cabins_router, std::back_inserter(cabin_info_reply));
+              print_multipart_msg(cabin_info_reply);
+              assert(recv_res.has_value());
+              std::string_view g_id = cabin_info_reply[0].to_string_view();
+              std::string_view title = cabin_info_reply[1].to_string_view();
+              std::string_view desc = cabin_info_reply[2].to_string_view();
+              
+              cabin_info new_cabin(title, desc);
+              new_cabin.g_id = g_id;
+              new_cabin.curr_playing = 0;
+              cabin_name_to_id[std::string(title)] = g_id;
+              cabin_id_to_info[cabin_id(g_id)] = std::move(new_cabin);
+              
+              std::cout << "successfully added a new cabin: " << title << "\n";
+
+          }
+
+
+      }
+  }
 }
 
 void ShipDeck::handle_services_ships_input(std::span<zmq::message_t> input) {
@@ -199,13 +231,13 @@ void ShipDeck::handle_crewmate_input_text(std::span<zmq::message_t> input) {
   // so, send to the cabin and let the cabin generate all the text messages
   // as some people may have configured to not get any text messages
   client_id c_id = input[1].to_string();
-  cabin_id curr_cabin_id = cabin_map[c_id].g_id;
-
-  std::vector<zmq::message_t> input_copy(input.size() + 1);
-  std::ranges::move(input, input_copy.begin() + 1);
-  input_copy[0] = zmq::message_t(curr_cabin_id);
-  auto send_res = zmq::send_multipart(cabins_router, input_copy);
-  assert(send_res.has_value() && "cabin failed: " + curr_cabin_id);
+//   cabin_id curr_cabin_id = cabin_map[c_id].g_id;
+//
+//   std::vector<zmq::message_t> input_copy(input.size() + 1);
+//   std::ranges::move(input, input_copy.begin() + 1);
+//   input_copy[0] = zmq::message_t(curr_cabin_id);
+//   auto send_res = zmq::send_multipart(cabins_router, input_copy);
+//   assert(send_res.has_value() && "cabin failed: " + curr_cabin_id);
 }
 
 void ShipDeck::handle_host_user_input(std::span<std::string> input) {}

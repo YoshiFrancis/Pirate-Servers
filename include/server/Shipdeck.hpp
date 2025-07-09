@@ -32,8 +32,9 @@ private:
   // control socket to kill threads
   zmq::socket_t control_pub;
 
-  std::unordered_map<std::string, cabin_info>
-      cabin_map; // cabin title, cabin info
+  std::unordered_map<std::string, cabin_id> cabin_name_to_id; 
+  std::unordered_map<cabin_id, cabin_info>
+      cabin_id_to_info; // cabin title, cabin info
   std::unordered_map<client_id, client_info>
       client_map; // client zmq id, client info
 
@@ -52,7 +53,6 @@ private:
   void user_input_worker();
 
   void handle_services_cabins_input(std::span<zmq::message_t> input);
-  void handle_services_crew_input(std::span<zmq::message_t> input);
   void handle_services_ships_input(std::span<zmq::message_t> input);
 
   bool handle_sub_ship_input(std::span<zmq::message_t> input);

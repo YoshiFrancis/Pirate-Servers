@@ -4,9 +4,13 @@
 #include "defines.hpp"
 #include "zmq.hpp"
 
-#include <unordered_map>
-#include <span>
+#include <array>
+#include <atomic>
 #include <functional>
+#include <ranges>
+#include <span>
+#include <tuple>
+#include <unordered_map>
 
 namespace pirates {
 
@@ -14,19 +18,32 @@ namespace ship {
 
 class Cabin {
 
-    private:
-        zmq::context_t context;
-        zmq::socket_t shipdeck_dealer;
-        zmq::socket_t control_sub;
-        cabin_info info;
+private:
+  zmq::context_t context;
+  zmq::socket_t shipdeck_dealer;
+  zmq::socket_t control_sub;
+  cabin_info info;
 
-    public:
-        Cabin(std::string_view title, std::string_view description, const std::string& shipdeck_enpoint, const std::string& control_endpoint);
-        virtual ~Cabin();
+  std::atomic<bool> alive = true;
 
-    protected:
-        virtual zmq::send_result_t send_to_shipdeck(std::vector<zmq::message_t>&& msg) final;
-        virtual void poll_with_control(std::vector<std::tuple<zmq::socket_t&, std::function<void(std::span<zmq::message_t>)>>> sockets_and_handles) final;
+public:
+  Cabin(std::string_view title, std::string_view description,
+        const std::string &shipdeck_enpoint,
+        const std::string &control_endpoint);
+  virtual ~Cabin();
+
+protected:
+  template <std::ranges::range Range>
+  zmq::send_result_t send_to_shipdeck(Range &&msg);
+  virtual bool is_alive() const;
+  virtual std::array<zmq::const_buffer, 3> cabin_info_msg() const;
+  virtual void poll_with_control(
+      std::vector<std::tuple<zmq::socket_t &,
+                             std::function<void(std::span<zmq::message_t>)>>>
+          sockets_and_handles) final;
+
+private:
+  bool authenticate_with_server();
 };
 
 } // namespace ship

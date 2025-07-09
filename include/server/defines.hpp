@@ -29,12 +29,11 @@ struct client_info {
 
 struct cabin_info {
     cabin_id g_id;
-    server_id s_id;
-    const std::string title;
-    const std::string description;
-    uint32_t curr_playing;
+    std::string title;
+    std::string description;
+    uint32_t curr_playing = 0;
 
-    cabin_info(std::string_view t, std::string_view d);
+    cabin_info(std::string_view t="", std::string_view d="");
 };
 
 struct server_info {
