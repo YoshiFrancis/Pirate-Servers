@@ -27,9 +27,7 @@ int main(int argc, char *argv[]) {
     pirates::ship::CabinContainer cabin_container(cabin_endpoint);
     pirates::ship::ShipbridgeContainer shipbridge_container(
         shipbridge_endpoint);
-    pirates::ship::ShipDeck shipdeck(shipdeck_endpoint, shipdeck_port,
-                                     cabin_endpoint, crewmate_endpoint,
-                                     shipbridge_endpoint);
+    pirates::ship::ShipDeck shipdeck(shipdeck_endpoint, shipdeck_port);
 
     pirates::ship::Server myserver(
         shipdeck_endpoint + std::to_string(shipdeck_port), argv[1],

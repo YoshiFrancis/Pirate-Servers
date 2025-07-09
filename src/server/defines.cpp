@@ -26,4 +26,4 @@ void pirates::ship::print_multipart_msg(std::span<zmq::message_t> &mp) {
   }
 }
 
-
+pirates::ship::cabin_info::cabin_info(std::string_view t, std::string_view d) : title(t), description(d) { }
