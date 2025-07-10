@@ -4,7 +4,7 @@
 
 #include <string>
 #include <string_view>
-#include <unordered_map>
+#include <unordered_set>
 
 namespace pirates {
 
@@ -12,7 +12,7 @@ namespace ship {
 class LobbyCabin : public Cabin {
 
 private:
-  std::unordered_map<client_id, std::string> users;
+  std::unordered_set<std::string> users;
 
 public:
   LobbyCabin(std::string_view title, std::string_view description,
