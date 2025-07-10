@@ -37,6 +37,7 @@ private:
   std::unordered_map<std::string, cabin_id> cabin_name_to_id; 
   std::unordered_map<cabin_id, cabin_info>
       cabin_id_to_info; // cabin title, cabin info
+  std::unordered_map<std::string, client_id> crew_name_to_id;
   std::unordered_map<client_id, client_info>
       client_map; // client zmq id, client info
 

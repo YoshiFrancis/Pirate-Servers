@@ -44,12 +44,22 @@ void Cabin::poll_with_control(
   zmq::pollitem_t items[poll_items + 1];
   items[0] = {control_sub, 0, ZMQ_POLLIN, 0};
   for (size_t i = 0; i < poll_items; ++i) {
-    items[i] = {std::get<0>(sockets_and_handles[i]), 0, ZMQ_POLLIN, 0};
+    items[i+1] = {std::get<0>(sockets_and_handles[i]), 0, ZMQ_POLLIN, 0};
   }
   while (is_alive()) {
     zmq::poll(items, poll_items + 1, std::chrono::milliseconds(-1));
     if (items[0].revents & ZMQ_POLLIN) {
       break;
+    }
+    std::vector<zmq::message_t> reqs;
+
+    for (size_t i = 0; i < poll_items; ++i) {
+        if (items[i+1].revents & ZMQ_POLLIN) {
+            auto recv_res = zmq::recv_multipart(std::get<0>(sockets_and_handles[i]), std::back_inserter(reqs));
+            assert(recv_res.has_value());
+            std::get<1>(sockets_and_handles[i])(reqs); // calling the handle function
+            reqs.clear();
+        }
     }
   }
 }

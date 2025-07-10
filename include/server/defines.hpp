@@ -18,13 +18,22 @@ typedef std::string cabin_id;
 
 struct client_info {
   client_id c_id;
+  server_id c_server_id;
+  cabin_id curr_cabin;
   std::string c_username;
   std::string c_password;
   bool c_online = true;
 
   client_info(std::string_view username="", std::string_view password="") { c_username = username; c_password = password; }
-  inline void set_id(client_id id) { c_id = id; }
+  inline void set_server_id(server_id id) { c_server_id = id; }
+  inline void set_crew_id(client_id id) { c_id = id; }
+  inline void set_cabin_id(cabin_id id) { curr_cabin = id; }
+  inline void set_offline() { c_online = false; }
+  inline void set_online() { c_online = true; }
   inline client_id get_id() const { return c_id; }
+  inline cabin_id get_cabin_id() const { return curr_cabin; }
+  inline server_id get_server_id() const { return c_server_id; }
+  inline std::string get_username() const { return c_username; }
 };
 
 struct cabin_info {

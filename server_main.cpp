@@ -4,6 +4,7 @@
 #include "server/Server.hpp"
 #include "server/ShipbridgeContainer.hpp"
 #include "server/Shipdeck.hpp"
+#include "server/LobbyCabin.hpp"
 
 #include <iostream>
 #include <string>
@@ -15,16 +16,22 @@ int main(int argc, char *argv[]) {
     std::cout << "Usage: ./MainServer <adress> <ship port> <crewmate port>\n";
     return EXIT_FAILURE;
   }
-  std::cout << "begining server!\n";
   try {
 
     std::string shipdeck_endpoint = "tcp://localhost:";
     constexpr int shipdeck_port{6003};
 
+    std::cout << "setting up shiip deck\n";
     pirates::ship::ShipDeck shipdeck(shipdeck_endpoint, shipdeck_port);
-    pirates::ship::Cabin defaultCabin("Default", "Testing out the cabins",
+    std::cout << "setting up cabins\n";
+    std::thread cabins_thread([&shipdeck]() {
+
+    pirates::ship::LobbyCabin defaultCabin("Default", "Testing out the cabins",
                                       shipdeck.get_cabins_router_endpoint(),
                                       shipdeck.get_control_pub_endpoint());
+            });
+
+  std::cout << "begining server!\n";
 
     pirates::ship::Server myserver(
         shipdeck_endpoint + std::to_string(shipdeck_port), argv[1],
@@ -33,6 +40,8 @@ int main(int argc, char *argv[]) {
     while (myserver.is_alive()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
     };
+
+    cabins_thread.join();
   } catch (...) {
     std::cout << "\n\nunresolved error caught in main\n\n";
   }

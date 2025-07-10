@@ -17,9 +17,10 @@ Server::Server(const std::string &shipdeck_addr, std::string_view server_name,
       ship_dealer(context, zmq::socket_type::dealer),
       control_pub(context, zmq::socket_type::pub) {
 
-  assert(context.handle() != nullptr);
   std::string addr = std::string(server_name) + std::to_string(ship_port_num);
-  std::cout << "binding ship router\n";
+  std::cout << "server binding ship router " << addr << "\n";
+  assert(context.handle() != nullptr);
+  std::cout << "server binding ship router " << addr << "\n";
   ship_router.bind(addr);
   assert(ship_router.handle() != nullptr);
   addr = std::string(server_name) + std::to_string(crew_port_num);
@@ -98,6 +99,7 @@ void Server::ship_listener_task() {
     if (items[1].revents & ZMQ_POLLIN) {
         zmq::recv_result_t res = zmq::recv_multipart(
                 shipdeck_dealer, std::back_inserter(reqs), zmq::recv_flags::none);
+        std::cout << "server received message from shipdeck!\n";
         assert(res.has_value());
         zmq::send_multipart(client_router, reqs);
     }
