@@ -61,7 +61,9 @@ void Server::user_input_task() {
     std::cout << "> ";
     std::getline(std::cin, input_str);
     // create message and send
+    std::cout << input_str << "\n";
     if (input_str.length() > 0 && input_str[0] == '/') {
+        std::cout << "given a command!\n";
       std::vector<std::string> client_input = {"COMMAND", input_str};
       handle_user_input(client_input);
     }
@@ -75,28 +77,38 @@ void Server::ship_listener_task() {
   control_sub.set(zmq::sockopt::subscribe,
                   ""); // setting the filter, basically all messages
 
-  zmq::pollitem_t items[] = {{ship_router, 0, ZMQ_POLLIN, 0},
-                             {control_sub, 0, ZMQ_POLLIN, 0}};
+  zmq::pollitem_t items[3] = {{ship_router, 0, ZMQ_POLLIN, 0},
+      {shipdeck_dealer, 0, ZMQ_POLLIN, 0},
+      {control_sub, 0, ZMQ_POLLIN, 0}};
   while (is_alive()) {
-    zmq::poll(items, 2, std::chrono::milliseconds(-1)); // indefinite polling
+    zmq::poll(items, 3, std::chrono::milliseconds(-1)); // indefinite polling
     std::vector<zmq::message_t> reqs;
     if (items[0].revents & ZMQ_POLLIN) {
 
-      zmq::recv_result_t res = zmq::recv_multipart(
-          ship_router, std::back_inserter(reqs), zmq::recv_flags::none);
-      assert(res.has_value());
-      if (reqs[0].to_string_view() == "SHIP") {
-        zmq::send_result_t res = zmq::send_multipart(shipdeck_dealer, reqs);
-        assert(res.has_value() && "ship listener to core send");
-      }
+        zmq::recv_result_t res = zmq::recv_multipart(
+                ship_router, std::back_inserter(reqs), zmq::recv_flags::none);
+        assert(res.has_value());
+        if (reqs[0].to_string_view() == "SHIP") {
+            zmq::send_result_t res = zmq::send_multipart(shipdeck_dealer, reqs);
+            assert(res.has_value() && "ship listener to core send");
+        }
+    }
 
-      if (items[1].revents & ZMQ_POLLIN) {
+
+    if (items[1].revents & ZMQ_POLLIN) {
+        zmq::recv_result_t res = zmq::recv_multipart(
+                shipdeck_dealer, std::back_inserter(reqs), zmq::recv_flags::none);
+        assert(res.has_value());
+        zmq::send_multipart(client_router, reqs);
+    }
+
+    if (items[2].revents & ZMQ_POLLIN) {
         std::cout << "ship listener signal to die\n";
         zmq::message_t control_msg(0);
         auto res = control_sub.recv(control_msg);
         break;
-      }
     }
+
   }
   std::cout << "ship listener dieing...\n";
 }
@@ -116,8 +128,7 @@ void Server::client_listener_task() {
       zmq::recv_result_t recv_res = zmq::recv_multipart(
           client_router, std::back_inserter(reqs), zmq::recv_flags::none);
       assert(recv_res.has_value());
-      std::cout << "received message from client\n";
-      print_multipart_msg(reqs);
+      std::cout << "server received message from client\n";
       zmq::send_result_t send_res = zmq::send_multipart(shipdeck_dealer, reqs);
       assert(send_res.has_value() && "crew listener to core send");
     }
@@ -132,9 +143,8 @@ void Server::client_listener_task() {
 }
 
 void Server::handle_user_input(std::span<std::string> input) {
-  assert(input[0].to_string_view() == "CLIENT");
-  if (input[1] == "COMMAND")
-    handle_user_input_command(input.subspan(2, input.size() - 2));
+  if (input[0] == "COMMAND")
+    handle_user_input_command(input);
 }
 
 void Server::handle_user_input_command(std::span<std::string> input) {
@@ -143,7 +153,7 @@ void Server::handle_user_input_command(std::span<std::string> input) {
     std::cout << msg << "\n";
   }
   std::cout << "-----------------------------\n";
-  if (input[0] == "/quit") {
+  if (input[1] == "/quit") {
     alive = false;
   }
 }
