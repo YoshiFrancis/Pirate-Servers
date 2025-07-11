@@ -53,7 +53,6 @@ Client::Client(std::string_view username_, std::string_view password_,
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::cout << "resending message\n";
   }
-  std::cout << "sent login successfully\n";
 
   std::vector<zmq::message_t> reqs;
   auto res_result = zmq::recv_multipart_n(dealer, std::back_inserter(reqs), 3);
@@ -138,7 +137,6 @@ void Client::connection_task() {
       std::vector<zmq::message_t> reqs;
       zmq::recv_result_t res = zmq::recv_multipart(
           dealer, std::back_inserter(reqs), zmq::recv_flags::none);
-      print_multipart_msg(reqs);
       assert(res.has_value() && "dealer listener from ship");
       auto send_res = zmq::send_multipart(sender, reqs);
       assert(send_res.has_value() && "dealer thread to core send");
@@ -158,10 +156,10 @@ void Client::core_task() {
     zmq::recv_result_t res =
         zmq::recv_multipart(core, std::back_inserter(reqs));
     assert(res.has_value() && "Error receiving messagee in core\n");
-    print_multipart_msg(reqs);
     if (reqs[0].to_string_view() == "SHIP") {
-      // handle server input
       handle_ship_input(reqs);
+    } else if (reqs[0].to_string_view() == "CABIN") {
+      handle_cabin_input(reqs);
     } else if (reqs[0].to_string_view() == "CLIENT") {
       // handle client input
       handle_user_input(reqs);
@@ -170,8 +168,6 @@ void Client::core_task() {
 }
 
 void Client::handle_ship_input(std::span<zmq::message_t> input) {
-  std::cout << "handling ship input:\n";
-  print_multipart_msg(input);
   if (input[1].to_string_view() == "TEXT") {
     handle_ship_input_text(input);
   } else if (input[1].to_string_view() == "COMMAND") {
@@ -207,6 +203,28 @@ void Client::handle_ship_input_alert(std::span<zmq::message_t> input) {
   std::cout << "-------------------\n";
   std::cout << "< ";
 }
+
+void Client::handle_cabin_input(std::span<zmq::message_t> input) {
+  std::string_view input_type = input[1].to_string_view();
+  if (input_type == "TEXT") {
+    std::string_view username = input[2].to_string_view();
+    if (input[3].to_string_view() != "") {
+      std::cout << username << ": " << input[3].to_string_view() << "\n";
+    }
+    for (auto &msg : input.subspan(3, input.size() - 4)) {
+      if (msg.to_string_view() != "")
+        std::cout << "> " << username << ": " << msg.to_string_view() << "\n";
+    }
+
+    std::cout << "> " << std::flush;
+  }
+}
+
+void Client::handle_cabin_input_text(std::span<zmq::message_t> input) {}
+
+void Client::handle_cabin_input_command(std::span<zmq::message_t> input) {}
+
+void Client::handle_cabin_input_alert(std::span<zmq::message_t> input) {}
 
 void Client::handle_user_input(std::span<zmq::message_t> input) {
   if (input[1].to_string_view() == "COMMAND") {

@@ -189,8 +189,8 @@ void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
     std::string m_type = input[2].to_string();
 
     std::vector<zmq::const_buffer> messages{
-        zmq::buffer(crew_server_id), zmq::buffer(crew_id),
-        zmq::buffer(m_type)}; // server_id, client_id, m_type, message...
+        zmq::buffer(crew_server_id), zmq::buffer(crew_id), zmq::str_buffer("CABIN"),
+        zmq::buffer(m_type), zmq::buffer(crew_username)}; // server_id, client_id, m_type, message...
 
     for (auto &frame : input.subspan(4, input.size() - 4)) {
       messages.emplace_back(zmq::buffer(frame.to_string()));
