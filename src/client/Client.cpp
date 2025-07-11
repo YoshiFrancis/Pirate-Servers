@@ -207,6 +207,7 @@ void Client::handle_ship_input_alert(std::span<zmq::message_t> input) {
 void Client::handle_cabin_input(std::span<zmq::message_t> input) {
   std::string_view input_type = input[1].to_string_view();
   if (input_type == "TEXT") {
+    // [CABIN, input_type, username of sender, text...]
     std::string_view username = input[2].to_string_view();
     if (input[3].to_string_view() != "") {
       std::cout << username << ": " << input[3].to_string_view() << "\n";

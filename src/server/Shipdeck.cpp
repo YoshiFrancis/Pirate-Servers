@@ -181,6 +181,7 @@ void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
     }
   } else if (input[1].to_string_view() == "SEND") {
     std::string crew_username = input[3].to_string();
+    std::string sender_username = input[4].to_string();
     client_id crew_id = crew_name_to_id[crew_username];
     server_id crew_server_id = client_map[crew_id].get_server_id();
     std::cout << "sending to crew id: " << crew_id << "\n";
@@ -190,9 +191,9 @@ void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
 
     std::vector<zmq::const_buffer> messages{
         zmq::buffer(crew_server_id), zmq::buffer(crew_id), zmq::str_buffer("CABIN"),
-        zmq::buffer(m_type), zmq::buffer(crew_username)}; // server_id, client_id, m_type, message...
+        zmq::buffer(m_type), zmq::buffer(sender_username)}; // server_id, client_id, m_type, message...
 
-    for (auto &frame : input.subspan(4, input.size() - 4)) {
+    for (auto &frame : input.subspan(5, input.size() - 5)) {
       messages.emplace_back(zmq::buffer(frame.to_string()));
     }
 
