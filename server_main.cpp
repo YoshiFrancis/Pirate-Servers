@@ -26,9 +26,17 @@ int main(int argc, char *argv[]) {
     std::cout << "setting up cabins\n";
     std::thread cabins_thread([&shipdeck]() {
 
-    pirates::ship::LobbyCabin defaultCabin("Default", "Testing out the cabins",
-                                      shipdeck.get_cabins_router_endpoint(),
-                                      shipdeck.get_control_pub_endpoint());
+            pirates::ship::LobbyCabin defaultCabin("Default", "Testing out the cabins",
+                    shipdeck.get_cabins_router_endpoint(),
+                    shipdeck.get_control_pub_endpoint());
+            });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    std::thread another_cabin_thread([&shipdeck]() {
+            pirates::ship::LobbyCabin anotherLobby("Lobby2", "Come join me bruh bruhssss",
+                    shipdeck.get_cabins_router_endpoint(), 
+                    shipdeck.get_control_pub_endpoint());
             });
 
   std::cout << "begining server!\n";
@@ -41,7 +49,10 @@ int main(int argc, char *argv[]) {
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
     };
 
+    std::cout << "server died\n";
+
     cabins_thread.join();
+    another_cabin_thread.join();
   } catch (...) {
     std::cout << "\n\nunresolved error caught in main\n\n";
   }

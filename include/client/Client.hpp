@@ -3,11 +3,11 @@
 
 #include "display.hpp"
 
+#include <atomic>
+#include <span>
 #include <string>
 #include <string_view>
 #include <thread>
-#include <atomic>
-#include <span>
 
 #include "../zhelpers.hpp"
 
@@ -17,6 +17,8 @@ private:
   const std::string username;
   const std::string password;
   const std::string server_addr;
+
+  std::mutex input_mux;
 
   Display display;
 
@@ -60,7 +62,7 @@ private:
   void handle_ship_input_text(std::span<zmq::message_t> input);
   void handle_ship_input_command(std::span<zmq::message_t> input);
   void handle_ship_input_alert(std::span<zmq::message_t> input);
-  void handle_ship_input_info(std::span<zmq::message_t> input); 
+  void handle_ship_input_info(std::span<zmq::message_t> input);
 
   void handle_cabin_input(std::span<zmq::message_t> input);
   void handle_cabin_input_text(std::span<zmq::message_t> input);
