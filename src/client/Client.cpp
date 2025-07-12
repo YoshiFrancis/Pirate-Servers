@@ -174,6 +174,8 @@ void Client::handle_ship_input(std::span<zmq::message_t> input) {
     handle_ship_input_command(input);
   } else if (input[1].to_string_view() == "ALERT") {
     handle_ship_input_alert(input);
+  } else if (input[1].to_string_view() == "INFO") {
+      handle_ship_input_info(input);
   }
 }
 
@@ -201,7 +203,16 @@ void Client::handle_ship_input_alert(std::span<zmq::message_t> input) {
     std::cout << "ALERT: " << msg.to_string_view() << "\n";
   }
   std::cout << "-------------------\n";
-  std::cout << "< ";
+  std::cout << "> " << std::flush; 
+}
+
+void Client::handle_ship_input_info(std::span<zmq::message_t> input) {
+  std::cout << "-------------------\n";
+    for (auto &msg : input.subspan(2, input.size() - 2)) {
+        std::cout << "SHIP INFO: " << msg.to_string_view() << "\n";
+    }
+  std::cout << "-------------------\n";
+  std::cout << "> " << std::flush; 
 }
 
 void Client::handle_cabin_input(std::span<zmq::message_t> input) {
@@ -236,16 +247,37 @@ void Client::handle_user_input(std::span<zmq::message_t> input) {
 }
 
 void Client::handle_user_input_command(std::span<zmq::message_t> input) {
-  const std::string_view command = input[2].to_string_view();
+  const std::string command = input[2].to_string();
   if (command == "/quit") {
     std::array<zmq::const_buffer, 3> quit_msg = {zmq::str_buffer("CREW"),
                                                  zmq::str_buffer("COMMAND"),
-                                                 zmq::str_buffer("quit")};
+                                                 zmq::buffer(command)};
     for (size_t i = 0; i < 10; ++i) {
       if (zmq::send_multipart(dealer, quit_msg))
         break;
     }
     alive = false;
+  } else if (command == "/join") {
+
+    std::string input_str;
+    std::cout << "Cabin name: " << std::flush;
+    std::getline(std::cin, input_str);
+    // create message and send
+    std::cout << "> " << std::flush;
+    std::array<zmq::const_buffer, 4> join_msg = {zmq::str_buffer("CREW"),
+                                                 zmq::str_buffer("COMMAND"),
+                                                 zmq::buffer(command),
+                                                 zmq::buffer(input_str)};
+    auto send_res = zmq::send_multipart(dealer, join_msg);
+    assert(send_res.has_value());
+  } else {
+      std::array<zmq::const_buffer, 3> command_msg = {
+          zmq::str_buffer("CREW"),
+          zmq::str_buffer("COMMAND"),
+          zmq::buffer(command)
+      };
+    auto send_res = zmq::send_multipart(dealer, command_msg);
+    assert(send_res.has_value());
   }
 }
 

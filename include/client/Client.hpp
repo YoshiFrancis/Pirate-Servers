@@ -60,6 +60,7 @@ private:
   void handle_ship_input_text(std::span<zmq::message_t> input);
   void handle_ship_input_command(std::span<zmq::message_t> input);
   void handle_ship_input_alert(std::span<zmq::message_t> input);
+  void handle_ship_input_info(std::span<zmq::message_t> input); 
 
   void handle_cabin_input(std::span<zmq::message_t> input);
   void handle_cabin_input_text(std::span<zmq::message_t> input);

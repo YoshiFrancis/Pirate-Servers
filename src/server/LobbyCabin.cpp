@@ -16,11 +16,8 @@ LobbyCabin::LobbyCabin(std::string_view title, std::string_view description,
 }
 
 void LobbyCabin::handle_shipdeck_input(std::span<zmq::message_t> input) {
-  std::cout << "Lobby Cabin got input!\n";
-  print_multipart_msg(input);
   std::string_view input_type = input[0].to_string_view();
   if (input_type == "TEXT") {
-      std::cout << "lobby cabin sending out text message of users\n";
       std::string username = input[1].to_string();
       std::string_view text = input[2].to_string_view();
 

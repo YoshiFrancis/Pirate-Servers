@@ -43,6 +43,9 @@ struct cabin_info {
     uint32_t curr_playing = 0;
 
     cabin_info(std::string_view t="", std::string_view d="");
+
+    // get a 3 length array in zmq format to send to user
+    zmq::multipart_t zmq_info() const;
 };
 
 struct server_info {
@@ -60,6 +63,8 @@ struct server_info {
 void print_multipart_msg(const zmq::multipart_t &mp);
 void print_multipart_msg(std::vector<zmq::message_t> &mp);
 void print_multipart_msg(std::span<zmq::message_t> &mp);
+
+zmq::multipart_t crew_header_mp(const server_id& s_id, const client_id& c_id, const std::string& sender_type, const std::string& message_type);
 };
 
 }; // namespace pirates

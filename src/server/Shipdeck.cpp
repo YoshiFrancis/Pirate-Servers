@@ -184,21 +184,17 @@ void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
     std::string sender_username = input[4].to_string();
     client_id crew_id = crew_name_to_id[crew_username];
     server_id crew_server_id = client_map[crew_id].get_server_id();
-    std::cout << "sending to crew id: " << crew_id << "\n";
-    std::cout << "shipdeck sending input from cabin to user at server id: "
-              << crew_server_id << "\n";
     std::string m_type = input[2].to_string();
 
     std::vector<zmq::const_buffer> messages{
-        zmq::buffer(crew_server_id), zmq::buffer(crew_id), zmq::str_buffer("CABIN"),
-        zmq::buffer(m_type), zmq::buffer(sender_username)}; // server_id, client_id, m_type, message...
+        zmq::buffer(crew_server_id), zmq::buffer(crew_id),
+        zmq::str_buffer("CABIN"), zmq::buffer(m_type),
+        zmq::buffer(
+            sender_username)}; // server_id, client_id, m_type, message...
 
     for (auto &frame : input.subspan(5, input.size() - 5)) {
       messages.emplace_back(zmq::buffer(frame.to_string()));
     }
-
-    std::cout << "shipdeck sending out message from cabin to users\n";
-
     auto send_res = zmq::send_multipart(server_router, messages);
     assert(send_res.has_value());
   }
@@ -221,8 +217,10 @@ bool ShipDeck::handle_top_ship_input(std::span<zmq::message_t> input) {
 }
 
 void ShipDeck::handle_crewmate_input(std::span<zmq::message_t> input) {
-  // input = [s_id, c_id, type_of_msg (CREW), user_command, arguments]
+  // input = [s_id, c_id, sender_type (CREW), message_type, arguments]
 
+  std::cout << "input from crewmate:\n";
+  print_multipart_msg(input);
   if (input[3].to_string_view() == "LOGIN" &&
       !client_map.contains(input[1].to_string())) {
     server_id s_id = input[0].to_string();
@@ -250,14 +248,54 @@ void ShipDeck::handle_crewmate_input(std::span<zmq::message_t> input) {
     handle_crewmate_input_text(input);
 }
 
+// TODO NEXT
 void ShipDeck::handle_crewmate_input_command(std::span<zmq::message_t> input) {
+  // input = [s_id, c_id, sender_type (CREW), message_type, command name,
+  // command arguments]
+  std::cout << "handlign crewwmate input command!\n";
+  print_multipart_msg(input);
   std::string_view command = input[4].to_string_view();
+  client_id crew_id = input[1].to_string();
+  server_id s_id = input[0].to_string();
   if (command == "/leave") {
     // send them to the initial cabin
-  } else if (command == "/help") {
-    // send them the cabin's help info
+    cabin_id default_cabin_id = cabin_name_to_id[default_cabin];
+    if (client_map[crew_id].get_cabin_id() != default_cabin_id) {
+      change_player_cabins(crew_id, default_cabin_id);
+    }
+  } else if (command == "/join") {
+    std::string cabin_name = input[5].to_string();
+    cabin_id cab_id = cabin_name_to_id[cabin_name];
+    if (cab_id != client_map[crew_id].get_cabin_id()) {
+      change_player_cabins(crew_id, cab_id);
+    }
+
+  } else if (command == "/show") {
+    cabin_id curr_cabin_id = client_map[crew_id].get_cabin_id();
+    if (cabin_id_to_info.contains(curr_cabin_id)) {
+      zmq::multipart_t show_info_mp =
+          crew_header_mp(s_id, crew_id, "SHIP", "INFO");
+      auto cabin_zmq_info_msg = cabin_id_to_info[curr_cabin_id].zmq_info();
+      show_info_mp.append(std::move(cabin_zmq_info_msg));
+      auto send_res = zmq::send_multipart(server_router, show_info_mp);
+      assert(send_res.has_value());
+    }
   } else if (command == "/ping") {
+    zmq::multipart_t heartbeat_mp =
+        crew_header_mp(s_id, crew_id, "SHIP", "ACK");
+    auto send_res = zmq::send_multipart(server_router, heartbeat_mp);
+    assert(send_res.has_value());
     // send the the rtt from server to user
+  } else if (command == "/showall") {
+    zmq::multipart_t showall_info_mp =
+        crew_header_mp(s_id, crew_id, "SHIP", "INFO");
+    std::for_each(cabin_id_to_info.begin(), cabin_id_to_info.end(),
+                  [&showall_info_mp](const auto &cabin) {
+                    auto cabin_info_msg = cabin.second.zmq_info();
+                    showall_info_mp.append(std::move(cabin_info_msg));
+                  });
+    auto send_res = zmq::send_multipart(server_router, showall_info_mp);
+    assert(send_res.has_value());
   }
 }
 
