@@ -296,6 +296,9 @@ void ShipDeck::handle_crewmate_input_command(std::span<zmq::message_t> input) {
                   });
     auto send_res = zmq::send_multipart(server_router, showall_info_mp);
     assert(send_res.has_value());
+  } else if (command == "/quit") {
+    client_map[crew_id].set_offline();
+    change_player_cabins(crew_id, "");
   }
 }
 
@@ -325,16 +328,20 @@ bool ShipDeck::set_top_ship(const std::string &endpoint) { return false; }
 void ShipDeck::change_player_cabins(client_id crew_id, cabin_id cab_id) {
   std::string crew_username = client_map[crew_id].c_username;
   cabin_id to_disconnect = client_map[crew_id].get_cabin_id();
+  if (to_disconnect != "") {
+    --cabin_id_to_info[to_disconnect].curr_playing;
+  }
   std::array<zmq::const_buffer, 3> disconnect_msg{zmq::buffer(to_disconnect),
                                                   zmq::str_buffer("DISCONNECT"),
                                                   zmq::buffer(crew_username)};
   auto send_res = zmq::send_multipart(cabins_router, disconnect_msg);
   assert(send_res.has_value());
 
-  if (client_map[crew_id].c_online) {
+  if (client_map[crew_id].c_online && cabin_id_to_info.contains(cab_id)) {
     std::array<zmq::const_buffer, 3> join_msg{zmq::buffer(cab_id),
                                               zmq::str_buffer("JOIN"),
                                               zmq::buffer(crew_username)};
+    ++cabin_id_to_info[cab_id].curr_playing;
     send_res = zmq::send_multipart(cabins_router, join_msg);
     assert(send_res.has_value());
     client_map[crew_id].set_cabin_id(cab_id);
