@@ -44,6 +44,8 @@ void LobbyCabin::handle_shipdeck_input(std::span<zmq::message_t> input) {
       std::string username = input[1].to_string();
       if (!users.contains(username)) {}
           users.insert(username);
+  } else if (input_type == "DISCONNECT") {
+      users.erase(input[1].to_string());
   }
 }
 

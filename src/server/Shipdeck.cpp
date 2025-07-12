@@ -183,7 +183,10 @@ void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
     std::string crew_username = input[3].to_string();
     std::string sender_username = input[4].to_string();
     client_id crew_id = crew_name_to_id[crew_username];
-    server_id crew_server_id = client_map[crew_id].get_server_id();
+    cabin_id cab_id = input[0].to_string();
+    if (cab_id != client_map[crew_id].get_cabin_id()) // cabins cannot send to user in other cabins!
+        return;
+    server_id crew_server_id = client_map[crew_id].get_server_id(); 
     std::string m_type = input[2].to_string();
 
     std::vector<zmq::const_buffer> messages{
