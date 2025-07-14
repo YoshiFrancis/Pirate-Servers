@@ -39,7 +39,7 @@ protected:
   zmq::send_result_t send_to_shipdeck(Range &&msg);
   virtual bool is_alive() const;
   inline virtual zmq::context_t &get_zmq_context() { return context; };
-  virtual std::array<zmq::const_buffer, 3> cabin_info_msg() const;
+  virtual std::array<zmq::message_t, 3> cabin_info_msg() const;
   virtual void poll_with_control(
       std::vector<std::tuple<zmq::socket_t &,
                              std::function<void(std::span<zmq::message_t>)>>>

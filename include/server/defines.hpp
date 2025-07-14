@@ -65,7 +65,9 @@ void print_multipart_msg(std::vector<zmq::message_t> &mp);
 void print_multipart_msg(std::span<zmq::message_t> &mp);
 
 zmq::multipart_t crew_header_mp(const server_id& s_id, const client_id& c_id, const std::string& sender_type, const std::string& message_type);
+zmq::message_t make_zmq_msg(std::string_view str);
 };
+
 
 }; // namespace pirates
 

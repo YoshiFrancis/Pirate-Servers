@@ -73,7 +73,6 @@ void ShipDeck::server_listener_worker() {
       auto recv_res =
           zmq::recv_multipart(server_router, std::back_inserter(reqs));
       assert(recv_res.has_value());
-      std::cout << "shipdeck received message from server\n";
 
       if (reqs[2].to_string_view() == "SHIP")
         handle_top_ship_input(reqs);
@@ -184,20 +183,24 @@ void ShipDeck::handle_services_cabins_input(std::span<zmq::message_t> input) {
     std::string sender_username = input[4].to_string();
     client_id crew_id = crew_name_to_id[crew_username];
     cabin_id cab_id = input[0].to_string();
-    if (cab_id != client_map[crew_id].get_cabin_id()) // cabins cannot send to user in other cabins!
-        return;
-    server_id crew_server_id = client_map[crew_id].get_server_id(); 
+    if (cab_id !=
+        client_map[crew_id]
+            .get_cabin_id()) // cabins cannot send to user in other cabins!
+      return;
+    server_id crew_server_id = client_map[crew_id].get_server_id();
     std::string m_type = input[2].to_string();
 
-    std::vector<zmq::const_buffer> messages{
-        zmq::buffer(crew_server_id), zmq::buffer(crew_id),
-        zmq::str_buffer("CABIN"), zmq::buffer(m_type),
-        zmq::buffer(
-            sender_username)}; // server_id, client_id, m_type, message...
+    std::vector<zmq::message_t> messages;
+    messages.push_back(make_zmq_msg(crew_server_id));
+    messages.push_back(make_zmq_msg(crew_id));
+    messages.push_back(make_zmq_msg("CABIN"));
+    messages.push_back(make_zmq_msg(m_type));
+    messages.push_back(make_zmq_msg(sender_username));
 
     for (auto &frame : input.subspan(5, input.size() - 5)) {
-      messages.emplace_back(zmq::buffer(frame.to_string()));
+      messages.push_back(make_zmq_msg(frame.to_string()));
     }
+
     auto send_res = zmq::send_multipart(server_router, messages);
     assert(send_res.has_value());
   }
@@ -223,7 +226,6 @@ void ShipDeck::handle_crewmate_input(std::span<zmq::message_t> input) {
   // input = [s_id, c_id, sender_type (CREW), message_type, arguments]
 
   std::cout << "input from crewmate:\n";
-  print_multipart_msg(input);
   if (input[3].to_string_view() == "LOGIN" &&
       !client_map.contains(input[1].to_string())) {
     server_id s_id = input[0].to_string();
@@ -327,8 +329,8 @@ bool ShipDeck::add_sub_ship(const std::string &endpoint) { return false; }
 bool ShipDeck::set_top_ship(const std::string &endpoint) { return false; }
 
 void ShipDeck::change_player_cabins(client_id crew_id, cabin_id cab_id) {
-    if (client_map[crew_id].c_online && !cabin_id_to_info.contains(cab_id))
-        return;
+  if (client_map[crew_id].c_online && !cabin_id_to_info.contains(cab_id))
+    return;
   std::string crew_username = client_map[crew_id].c_username;
   cabin_id to_disconnect = client_map[crew_id].get_cabin_id();
   if (to_disconnect != "") {

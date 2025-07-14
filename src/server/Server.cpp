@@ -99,7 +99,6 @@ void Server::ship_listener_task() {
     if (items[1].revents & ZMQ_POLLIN) {
         zmq::recv_result_t res = zmq::recv_multipart(
                 shipdeck_dealer, std::back_inserter(reqs), zmq::recv_flags::none);
-        std::cout << "server received message from shipdeck!\n";
         assert(res.has_value());
         zmq::send_multipart(client_router, reqs);
     }
@@ -130,7 +129,6 @@ void Server::client_listener_task() {
       zmq::recv_result_t recv_res = zmq::recv_multipart(
           client_router, std::back_inserter(reqs), zmq::recv_flags::none);
       assert(recv_res.has_value());
-      std::cout << "server received message from client\n";
       zmq::send_result_t send_res = zmq::send_multipart(shipdeck_dealer, reqs);
       assert(send_res.has_value() && "crew listener to core send");
     }

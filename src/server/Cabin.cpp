@@ -29,10 +29,10 @@ zmq::send_result_t Cabin::send_to_shipdeck(Range &&msg) {
 
 bool Cabin::is_alive() const { return alive; }
 
-std::array<zmq::const_buffer, 3> Cabin::cabin_info_msg() const {
-  return std::array<zmq::const_buffer, 3>{
-      zmq::buffer(info.title), zmq::buffer(info.description),
-      zmq::buffer(std::to_string(info.curr_playing))};
+std::array<zmq::message_t, 3> Cabin::cabin_info_msg() const {
+  return std::array<zmq::message_t, 3>{
+      make_zmq_msg(info.title), make_zmq_msg(info.description),
+      make_zmq_msg(std::to_string(info.curr_playing))};
 }
 
 void Cabin::poll_with_control(

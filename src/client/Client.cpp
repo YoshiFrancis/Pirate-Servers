@@ -57,7 +57,6 @@ Client::Client(std::string_view username_, std::string_view password_,
   std::vector<zmq::message_t> reqs;
   auto res_result = zmq::recv_multipart_n(dealer, std::back_inserter(reqs), 3);
   assert(res_result.has_value());
-  print_multipart_msg(reqs);
   assert(reqs[0].to_string_view() == "SHIP" &&
          reqs[1].to_string_view() == "ACK");
   std::cout << "connected succesfully\n";
@@ -105,15 +104,15 @@ void Client::input_task() {
     // create message and send
     if (input_str.length() == 0)
       continue;
-    std::array<zmq::const_buffer, 3> client_input = {zmq::str_buffer("CLIENT"),
-                                                     zmq::str_buffer("TEXT"),
-                                                     zmq::buffer(input_str)};
+    std::array<zmq::message_t, 3> client_input = {
+        zmq::message_t("CLIENT", 6), zmq::message_t("TEXT", 4),
+        zmq::message_t(input_str.data(), input_str.length())};
 
     if (input_str.length() > 0 && input_str[0] == '/') {
-      client_input[1] = zmq::str_buffer("COMMAND");
+      client_input[1] = zmq::message_t("COMMAND", 7);
     }
-
-    zmq::send_multipart(sender, client_input);
+    auto send_res = zmq::send_multipart(sender, client_input);
+    assert(send_res.has_value());
   }
 }
 
@@ -196,8 +195,6 @@ void Client::handle_ship_input_command(std::span<zmq::message_t> input) {
   if (command == "die") {
     alive = false;
   }
-
-  print_multipart_msg(input);
 }
 
 void Client::handle_ship_input_alert(std::span<zmq::message_t> input) {
@@ -276,9 +273,9 @@ void Client::handle_user_input_command(std::span<zmq::message_t> input) {
 }
 
 void Client::handle_user_input_text(std::span<zmq::message_t> input) {
-  std::array<zmq::const_buffer, 3> send_msgs = {
-      zmq::str_buffer("CREW"), zmq::str_buffer("TEXT"),
-      zmq::buffer(input[2].to_string())};
+  std::array<zmq::message_t, 3> send_msgs = {
+      zmq::message_t("CREW", 4), zmq::message_t("TEXT", 4),
+      zmq::message_t(input[2].data(), input[2].size())};
   // try to send it 10 times
   for (size_t i = 0; i < 10; ++i) {
     auto send_res = zmq::send_multipart(dealer, send_msgs);

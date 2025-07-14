@@ -4,13 +4,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 add_library(Server 
     Cabin.cpp 
-    CabinContainer.cpp 
-    CrewmateContainer.cpp
-    Crewmember.cpp 
     LobbyCabin.cpp
     Server.cpp 
-    Shipbridge.cpp 
-    ShipbridgeContainer.cpp 
     Shipdeck.cpp
     defines.cpp
 )
